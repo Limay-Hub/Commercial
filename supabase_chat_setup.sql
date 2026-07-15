@@ -115,6 +115,7 @@ create table if not exists chat_messages (
   room_id uuid references chat_rooms(id) on delete cascade,
   sender_share_key uuid not null,
   sender_name text not null default 'Citizen',
+  sender_digital_id text,
   body text,
   image_url text,
   created_at timestamptz not null default now(),

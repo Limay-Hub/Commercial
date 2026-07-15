@@ -192,7 +192,7 @@ begin
   if not verify_admin_login(p_password) then
     raise exception 'Not authorized';
   end if;
-  delete from public_chat_messages where id = p_message_id;
+  delete from chat_messages where id = p_message_id;
 end;
 $$;
 

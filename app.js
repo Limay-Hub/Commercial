@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.3';
+const APP_VERSION = 'LH_SYS_V.1.4';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -765,48 +765,24 @@ let pendingImageDataUrl = null;
 let chatRealtimeChannel = null;
 let chatPresenceChannel = null;
 
+// 'public' | 'groups' | 'dms' — which dropdown tab is selected
+let currentChatView = 'public';
+// null while viewing a room LIST (groups/dms); set to a room's uuid (or
+// null for Public) once a specific thread is open
+let activeRoomId = null;
+let viewingRoomThread = true; // Public starts as a thread, not a list
+let currentRoomName = 'Public';
+let currentRoomIsDm = false;
+
+let myGroupRooms = [];
+let myDmRooms = [];
+let pendingGroupInvites = [];
+let dmUnreadRoomIds = new Set();
+let newGroupInviteIds = [];
+let chatUserMenuTarget = null;
+
 function timeLabel(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function renderChatAvatarStack() {
-  const stack = document.getElementById('chatAvatarStack');
-  const names = [];
-  for (let i = chatMessages.length - 1; i >= 0 && names.length < 3; i--) {
-    const n = chatMessages[i].senderName;
-    if (n && n !== getDisplayName() && !names.includes(n)) names.push(n);
-  }
-  if (names.length === 0) names.push(getDisplayName());
-  const overflow = supabaseClient ? '' : '+12';
-
-  stack.innerHTML = names.map(n => `<span class="avatar" title="${n}">${initials(n)}</span>`).join('') +
-    (overflow ? `<span class="avatar avatar-overflow">${overflow}</span>` : '');
-}
-
-function renderChatMessages() {
-  const list = document.getElementById('chatMessages');
-  const wasNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
-
-  list.innerHTML = chatMessages.map(m => `
-    <div class="chat-msg ${m.self ? 'chat-msg-self' : ''}">
-      ${m.self ? '' : `<span class="chat-msg-avatar">${initials(m.senderName)}</span>`}
-      <div class="chat-msg-body">
-        <div class="chat-msg-meta">
-          <span class="chat-msg-name">${m.self ? 'You' : m.senderName}</span>
-          <span class="chat-msg-time">${timeLabel(m.createdAt)}</span>
-        </div>
-        ${m.body ? `<div class="chat-msg-bubble">${escapeHtml(m.body)}</div>` : ''}
-        ${m.imageUrl ? `<img class="chat-msg-image" src="${m.imageUrl}" alt="Shared photo" data-lightbox="${m.imageUrl}">` : ''}
-      </div>
-    </div>
-  `).join('') || '<p class="chat-empty-hint">No messages yet — say hello 👋</p>';
-
-  list.querySelectorAll('[data-lightbox]').forEach(img => {
-    img.addEventListener('click', () => openLightbox(img.dataset.lightbox));
-  });
-
-  if (wasNearBottom) list.scrollTop = list.scrollHeight;
-  renderChatAvatarStack();
 }
 
 function escapeHtml(str) {
@@ -828,66 +804,504 @@ function setChatPresence(text) {
   document.getElementById('chatPresence').textContent = text;
 }
 
-async function initChat() {
-  if (supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient
-        .from('public_chat_messages')
-        .select('*')
-        .order('created_at', { ascending: true })
-        .limit(50);
-      if (error) throw error;
-      const myKey = getShareKey();
-      chatMessages = (data || []).map(row => ({
-        id: row.id,
-        senderName: row.sender_name,
-        self: row.sender_share_key === myKey,
-        body: row.body,
-        imageUrl: row.image_url,
-        createdAt: new Date(row.created_at).getTime(),
-      }));
-      renderChatMessages();
+/* ---- Friends list (local-only quick-access list, no backend) ---- */
+function getFriends() {
+  try { return JSON.parse(localStorage.getItem('limayhub_friends') || '[]'); }
+  catch (err) { return []; }
+}
+function addFriend(digitalId, codeName) {
+  const friends = getFriends();
+  if (friends.some((f) => f.digitalId === digitalId)) return;
+  friends.push({ digitalId, codeName });
+  localStorage.setItem('limayhub_friends', JSON.stringify(friends));
+}
 
-      chatRealtimeChannel = supabaseClient
-        .channel('public-chat-room')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'public_chat_messages' }, (payload) => {
-          const row = payload.new;
-          if (chatMessages.some(m => m.id === row.id)) return;
-          chatMessages.push({
-            id: row.id,
-            senderName: row.sender_name,
-            self: row.sender_share_key === myKey,
-            body: row.body,
-            imageUrl: row.image_url,
-            createdAt: new Date(row.created_at).getTime(),
-          });
-          if (chatMessages.length > 200) chatMessages.shift();
-          renderChatMessages();
-        })
-        .subscribe();
+/* ---- Identity registry sync (lets others invite/DM you by Digital ID) ---- */
+async function syncChatIdentity() {
+  if (!supabaseClient) return;
+  try {
+    await supabaseClient.from('chat_identities').upsert({
+      share_key: getShareKey(),
+      digital_id: getOrCreateDigitalId(),
+      code_name: getDisplayName(),
+      updated_at: new Date().toISOString(),
+    });
+  } catch (err) { /* best effort — chat still works locally without this */ }
+}
 
-      chatPresenceChannel = supabaseClient.channel('public-chat-presence', { config: { presence: { key: myKey } } });
-      chatPresenceChannel
-        .on('presence', { event: 'sync' }, () => {
-          const count = Object.keys(chatPresenceChannel.presenceState()).length;
-          setChatPresence(`${count} ${count === 1 ? 'Citizen' : 'Citizens'} online`);
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            chatPresenceChannel.track({ name: getDisplayName(), online_at: Date.now() });
-          }
-        });
-    } catch (err) {
-      console.warn('Limay Hub: chat load failed, using demo messages.', err);
-      chatMessages = DEMO_CHAT_MESSAGES.slice();
-      renderChatMessages();
-      setChatPresence('4 Citizens online');
-    }
-  } else {
-    chatMessages = DEMO_CHAT_MESSAGES.slice();
-    renderChatMessages();
-    setChatPresence('4 Citizens online (demo mode)');
+function renderChatAvatarStack() {
+  const stack = document.getElementById('chatAvatarStack');
+  const names = [];
+  for (let i = chatMessages.length - 1; i >= 0 && names.length < 3; i--) {
+    const n = chatMessages[i].senderName;
+    if (n && n !== getDisplayName() && !names.includes(n)) names.push(n);
   }
+  if (names.length === 0) names.push(getDisplayName());
+  const overflow = supabaseClient ? '' : '+12';
+
+  stack.innerHTML = names.map(n => `<span class="avatar" title="${n}">${initials(n)}</span>`).join('') +
+    (overflow ? `<span class="avatar avatar-overflow">${overflow}</span>` : '');
+}
+
+function renderChatMessages() {
+  const list = document.getElementById('chatMessages');
+  const wasNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 60;
+  const showNameLabels = !currentRoomIsDm; // DM header already names who you're talking to
+
+  list.innerHTML = chatMessages.map(m => `
+    <div class="chat-msg ${m.self ? 'chat-msg-self' : ''}">
+      ${m.self ? '' : `<span class="chat-msg-avatar">${initials(m.senderName)}</span>`}
+      <div class="chat-msg-body">
+        <div class="chat-msg-meta">
+          <span class="chat-msg-name ${!m.self && showNameLabels ? 'chat-msg-name-link' : ''}" ${!m.self && showNameLabels ? `data-user-name="${escapeHtml(m.senderName)}" data-user-digital-id="${m.senderDigitalId || ''}"` : ''}>${m.self ? 'You' : m.senderName}</span>
+          <span class="chat-msg-time">${timeLabel(m.createdAt)}</span>
+        </div>
+        ${m.body ? `<div class="chat-msg-bubble">${escapeHtml(m.body)}</div>` : ''}
+        ${m.imageUrl ? `<img class="chat-msg-image" src="${m.imageUrl}" alt="Shared photo" data-lightbox="${m.imageUrl}">` : ''}
+      </div>
+    </div>
+  `).join('') || '<p class="chat-empty-hint">No messages yet — say hello 👋</p>';
+
+  list.querySelectorAll('[data-lightbox]').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.dataset.lightbox));
+  });
+  list.querySelectorAll('[data-user-name]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      if (!el.dataset.userDigitalId) return;
+      openChatUserMenu(el.dataset.userName, el.dataset.userDigitalId, e.clientX, e.clientY);
+    });
+  });
+
+  if (wasNearBottom) list.scrollTop = list.scrollHeight;
+  renderChatAvatarStack();
+}
+
+function unsubscribeChatRealtime() {
+  if (chatRealtimeChannel) { supabaseClient.removeChannel(chatRealtimeChannel); chatRealtimeChannel = null; }
+  if (chatPresenceChannel) { supabaseClient.removeChannel(chatPresenceChannel); chatPresenceChannel = null; }
+}
+
+function mapMessageRow(row, myKey) {
+  return {
+    id: row.id,
+    senderName: row.sender_name,
+    senderDigitalId: row.sender_digital_id,
+    self: row.sender_share_key === myKey,
+    body: row.body,
+    imageUrl: row.image_url,
+    createdAt: new Date(row.created_at).getTime(),
+  };
+}
+
+async function loadRoomMessages(roomId) {
+  const myKey = getShareKey();
+
+  if (!supabaseClient) {
+    chatMessages = roomId === null ? DEMO_CHAT_MESSAGES.slice() : [];
+    renderChatMessages();
+    setChatPresence(roomId === null ? '4 Citizens online (demo mode)' : 'Requires Supabase setup');
+    return;
+  }
+
+  unsubscribeChatRealtime();
+
+  try {
+    let q = supabaseClient.from('chat_messages').select('*').order('created_at', { ascending: true }).limit(50);
+    q = roomId === null ? q.is('room_id', null) : q.eq('room_id', roomId);
+    const { data, error } = await q;
+    if (error) throw error;
+    chatMessages = (data || []).map((row) => mapMessageRow(row, myKey));
+    renderChatMessages();
+  } catch (err) {
+    console.warn('Limay Hub: room message load failed.', err);
+    chatMessages = roomId === null ? DEMO_CHAT_MESSAGES.slice() : [];
+    renderChatMessages();
+  }
+
+  chatRealtimeChannel = supabaseClient
+    .channel(`chat-room-${roomId || 'public'}`)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
+      const row = payload.new;
+      const rowRoomId = row.room_id || null;
+      if (rowRoomId !== roomId) {
+        if (rowRoomId && dmRoomIsMine(rowRoomId) && row.sender_share_key !== myKey) {
+          dmUnreadRoomIds.add(rowRoomId);
+          updateChatNotifDots();
+        }
+        return;
+      }
+      if (chatMessages.some((m) => m.id === row.id)) return;
+      chatMessages.push(mapMessageRow(row, myKey));
+      if (chatMessages.length > 200) chatMessages.shift();
+      renderChatMessages();
+    })
+    .subscribe();
+
+  if (roomId === null) {
+    chatPresenceChannel = supabaseClient.channel('public-chat-presence', { config: { presence: { key: myKey } } });
+    chatPresenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const count = Object.keys(chatPresenceChannel.presenceState()).length;
+        setChatPresence(`${count} ${count === 1 ? 'Citizen' : 'Citizens'} online`);
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') chatPresenceChannel.track({ name: getDisplayName(), online_at: Date.now() });
+      });
+  } else if (currentRoomIsDm) {
+    setChatPresence('Direct Message');
+  } else {
+    setChatPresence('Group Chat');
+  }
+}
+
+function dmRoomIsMine(roomId) {
+  return myDmRooms.some((r) => r.id === roomId);
+}
+
+/* ---- Room-type dropdown + list/thread switching ---- */
+function toggleChatRoomDropdown() {
+  const dropdown = document.getElementById('chatRoomDropdown');
+  dropdown.hidden = !dropdown.hidden;
+  document.getElementById('chatNotifPopover').hidden = true;
+}
+
+async function switchChatView(view) {
+  currentChatView = view;
+  document.getElementById('chatRoomDropdown').hidden = true;
+  closeChatUserMenu();
+  document.getElementById('chatNewGroupForm').hidden = true;
+  document.getElementById('chatNewDmForm').hidden = true;
+
+  document.querySelectorAll('.chat-room-dropdown-item').forEach((btn) => {
+    btn.classList.toggle('is-active', btn.dataset.roomView === view);
+  });
+
+  if (view === 'public') {
+    viewingRoomThread = true;
+    activeRoomId = null;
+    currentRoomName = 'Public';
+    currentRoomIsDm = false;
+    document.getElementById('chatRoomSelectorLabel').textContent = 'Public';
+    document.getElementById('btnChatBack').hidden = true;
+    document.getElementById('chatRoomList').hidden = true;
+    document.getElementById('chatMessages').hidden = false;
+    document.getElementById('chatInputRow').hidden = false;
+    await loadRoomMessages(null);
+    return;
+  }
+
+  viewingRoomThread = false;
+  document.getElementById('chatRoomSelectorLabel').textContent = view === 'groups' ? 'Group Chats' : 'Direct Messages';
+  document.getElementById('btnChatBack').hidden = true;
+  document.getElementById('chatMessages').hidden = true;
+  document.getElementById('chatInputRow').hidden = true;
+  document.getElementById('chatRoomList').hidden = false;
+  unsubscribeChatRealtime();
+
+  if (view === 'groups') await renderGroupRoomList();
+  else await renderDmRoomList();
+}
+
+async function openChatRoom(roomId, roomName, isDm) {
+  viewingRoomThread = true;
+  activeRoomId = roomId;
+  currentRoomName = roomName;
+  currentRoomIsDm = isDm;
+  document.getElementById('chatRoomSelectorLabel').textContent = roomName;
+  document.getElementById('btnChatBack').hidden = false;
+  document.getElementById('chatRoomList').hidden = true;
+  document.getElementById('chatNewGroupForm').hidden = true;
+  document.getElementById('chatNewDmForm').hidden = true;
+  document.getElementById('chatMessages').hidden = false;
+  document.getElementById('chatInputRow').hidden = false;
+
+  if (isDm) {
+    dmUnreadRoomIds.delete(roomId);
+    updateChatNotifDots();
+  }
+
+  await loadRoomMessages(roomId);
+}
+
+async function backFromChatRoom() {
+  await switchChatView(currentChatView === 'public' ? 'public' : currentChatView);
+}
+
+/* ---- Group Chats list ---- */
+async function renderGroupRoomList() {
+  const list = document.getElementById('chatRoomList');
+  if (!supabaseClient) {
+    list.innerHTML = '<p class="chat-notif-empty">Group chats require Supabase setup.</p>';
+    return;
+  }
+  list.innerHTML = '<p class="chat-notif-empty">Loading…</p>';
+  try {
+    const myKey = getShareKey();
+    const { data: memberRows, error } = await supabaseClient
+      .from('chat_room_members')
+      .select('room_id, chat_rooms!inner(id, name, is_dm)')
+      .eq('share_key', myKey).eq('status', 'joined').eq('chat_rooms.is_dm', false);
+    if (error) throw error;
+    myGroupRooms = (memberRows || []).map((r) => ({ id: r.chat_rooms.id, name: r.chat_rooms.name || 'Group Chat' }));
+
+    list.innerHTML = (myGroupRooms.length
+      ? myGroupRooms.map((r) => `
+        <button class="chat-room-list-item" data-open-room="${r.id}" data-open-room-name="${escapeHtml(r.name)}">
+          <span class="chat-room-list-avatar">${initials(r.name)}</span>
+          <div class="chat-room-list-info">
+            <p class="chat-room-list-name">${escapeHtml(r.name)}</p>
+            <span class="chat-room-list-meta">Group Chat</span>
+          </div>
+        </button>
+      `).join('')
+      : '<p class="chat-notif-empty">No group chats yet.</p>'
+    ) + '<button class="chat-room-list-new-btn" id="btnOpenNewGroup">+ New Group Chat</button>';
+
+    list.querySelectorAll('[data-open-room]').forEach((btn) => {
+      btn.addEventListener('click', () => openChatRoom(btn.dataset.openRoom, btn.dataset.openRoomName, false));
+    });
+    document.getElementById('btnOpenNewGroup').addEventListener('click', openNewGroupForm);
+  } catch (err) {
+    list.innerHTML = '<p class="chat-notif-empty">Could not load group chats.</p>';
+  }
+}
+
+/* ---- Direct Messages list ---- */
+async function renderDmRoomList() {
+  const list = document.getElementById('chatRoomList');
+  if (!supabaseClient) {
+    list.innerHTML = '<p class="chat-notif-empty">Direct messages require Supabase setup.</p>';
+    return;
+  }
+  list.innerHTML = '<p class="chat-notif-empty">Loading…</p>';
+  try {
+    const myKey = getShareKey();
+    const { data: memberRows, error } = await supabaseClient
+      .from('chat_room_members')
+      .select('room_id, chat_rooms!inner(id, is_dm)')
+      .eq('share_key', myKey).eq('status', 'joined').eq('chat_rooms.is_dm', true);
+    if (error) throw error;
+
+    const roomIds = (memberRows || []).map((r) => r.room_id);
+    let otherMembers = [];
+    if (roomIds.length) {
+      const { data } = await supabaseClient
+        .from('chat_room_members')
+        .select('room_id, share_key, digital_id, code_name')
+        .in('room_id', roomIds).neq('share_key', myKey);
+      otherMembers = data || [];
+    }
+    myDmRooms = roomIds.map((id) => {
+      const other = otherMembers.find((m) => m.room_id === id);
+      return { id, otherName: other?.code_name || 'Citizen', otherDigitalId: other?.digital_id || '' };
+    });
+
+    const friends = getFriends();
+    const friendsHtml = friends.length
+      ? '<p class="chat-room-list-section-label">Friends</p>' + friends.map((f) => `
+        <button class="chat-room-list-item" data-friend-digital-id="${f.digitalId}" data-friend-name="${escapeHtml(f.codeName)}">
+          <span class="chat-room-list-avatar">${initials(f.codeName)}</span>
+          <div class="chat-room-list-info">
+            <p class="chat-room-list-name">${escapeHtml(f.codeName)}</p>
+            <span class="chat-room-list-meta">${f.digitalId}</span>
+          </div>
+        </button>
+      `).join('')
+      : '';
+
+    const dmsHtml = myDmRooms.length
+      ? '<p class="chat-room-list-section-label">Conversations</p>' + myDmRooms.map((r) => `
+        <button class="chat-room-list-item" data-open-room="${r.id}" data-open-room-name="${escapeHtml(r.otherName)}">
+          <span class="chat-room-list-avatar">${initials(r.otherName)}${dmUnreadRoomIds.has(r.id) ? ' <span class=\"chat-notif-dot chat-notif-dot-red\" style=\"position:static;display:inline-block;margin-left:2px;\"></span>' : ''}</span>
+          <div class="chat-room-list-info">
+            <p class="chat-room-list-name">${escapeHtml(r.otherName)}</p>
+            <span class="chat-room-list-meta">${r.otherDigitalId}</span>
+          </div>
+        </button>
+      `).join('')
+      : '<p class="chat-notif-empty">No conversations yet.</p>';
+
+    list.innerHTML = friendsHtml + dmsHtml + '<button class="chat-room-list-new-btn" id="btnOpenNewDm">+ New Message</button>';
+
+    list.querySelectorAll('[data-open-room]').forEach((btn) => {
+      btn.addEventListener('click', () => openChatRoom(btn.dataset.openRoom, btn.dataset.openRoomName, true));
+    });
+    list.querySelectorAll('[data-friend-digital-id]').forEach((btn) => {
+      btn.addEventListener('click', () => startDmByDigitalId(btn.dataset.friendDigitalId));
+    });
+    document.getElementById('btnOpenNewDm').addEventListener('click', openNewDmForm);
+  } catch (err) {
+    list.innerHTML = '<p class="chat-notif-empty">Could not load direct messages.</p>';
+  }
+}
+
+/* ---- New Group Chat form ---- */
+function openNewGroupForm() {
+  newGroupInviteIds = [];
+  document.getElementById('newGroupNameInput').value = '';
+  document.getElementById('newGroupInviteInput').value = '';
+  document.getElementById('newGroupInviteChips').innerHTML = '';
+  document.getElementById('newGroupNote').textContent = '';
+  document.getElementById('chatRoomList').hidden = true;
+  document.getElementById('chatNewGroupForm').hidden = false;
+}
+
+function renderNewGroupChips() {
+  document.getElementById('newGroupInviteChips').innerHTML = newGroupInviteIds.map((id) => `
+    <span class="chat-invite-chip">${id}<button data-remove-invite="${id}">✕</button></span>
+  `).join('');
+  document.querySelectorAll('[data-remove-invite]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      newGroupInviteIds = newGroupInviteIds.filter((id) => id !== btn.dataset.removeInvite);
+      renderNewGroupChips();
+    });
+  });
+}
+
+async function createGroupChat() {
+  const note = document.getElementById('newGroupNote');
+  const name = document.getElementById('newGroupNameInput').value.trim();
+  if (!name) { note.textContent = 'Enter a group name.'; return; }
+  if (!supabaseClient) { note.textContent = 'Requires Supabase setup.'; return; }
+  note.textContent = 'Creating…';
+  try {
+    const { data: roomId, error } = await supabaseClient.rpc('create_group_room', {
+      p_creator_share_key: getShareKey(),
+      p_creator_digital_id: getOrCreateDigitalId(),
+      p_creator_code_name: getDisplayName(),
+      p_room_name: name,
+      p_invite_digital_ids: newGroupInviteIds,
+    });
+    if (error) throw error;
+    document.getElementById('chatNewGroupForm').hidden = true;
+    await openChatRoom(roomId, name, false);
+  } catch (err) {
+    note.textContent = 'Could not create group: ' + (err.message || 'unknown error');
+  }
+}
+
+/* ---- New Direct Message form ---- */
+function openNewDmForm() {
+  document.getElementById('newDmDigitalIdInput').value = '';
+  document.getElementById('newDmNote').textContent = '';
+  document.getElementById('chatRoomList').hidden = true;
+  document.getElementById('chatNewDmForm').hidden = false;
+}
+
+async function startDmByDigitalId(digitalId) {
+  const note = document.getElementById('newDmNote');
+  if (!digitalId) { note.textContent = 'Enter a Digital ID.'; return; }
+  if (!supabaseClient) { note.textContent = 'Requires Supabase setup.'; return; }
+  note.textContent = 'Connecting…';
+  try {
+    const { data: roomId, error } = await supabaseClient.rpc('create_dm_room', {
+      p_a_share_key: getShareKey(),
+      p_a_digital_id: getOrCreateDigitalId(),
+      p_a_code_name: getDisplayName(),
+      p_b_digital_id: digitalId,
+    });
+    if (error) throw error;
+    document.getElementById('chatNewDmForm').hidden = true;
+    await openChatRoom(roomId, digitalId, true);
+  } catch (err) {
+    note.textContent = 'Could not start chat: ' + (err.message || 'unknown error');
+  }
+}
+
+/* ---- Username click menu ---- */
+function openChatUserMenu(name, digitalId, x, y) {
+  chatUserMenuTarget = { name, digitalId };
+  const menu = document.getElementById('chatUserMenu');
+  document.getElementById('chatUserMenuName').textContent = name;
+  menu.hidden = false;
+  const menuWidth = 220;
+  menu.style.left = Math.max(8, Math.min(x, window.innerWidth - menuWidth - 12)) + 'px';
+  menu.style.top = Math.max(8, Math.min(y, window.innerHeight - 180)) + 'px';
+}
+function closeChatUserMenu() {
+  document.getElementById('chatUserMenu').hidden = true;
+  chatUserMenuTarget = null;
+}
+
+/* ---- Notifications: pending group invites (green) + unread DMs (red) ---- */
+async function refreshChatNotifications() {
+  if (!supabaseClient) return;
+  try {
+    const myKey = getShareKey();
+    const { data, error } = await supabaseClient
+      .from('chat_room_members')
+      .select('room_id, chat_rooms!inner(id, name, is_dm)')
+      .eq('share_key', myKey).eq('status', 'invited').eq('chat_rooms.is_dm', false);
+    if (error) throw error;
+    pendingGroupInvites = (data || []).map((r) => ({ roomId: r.chat_rooms.id, roomName: r.chat_rooms.name || 'Group Chat' }));
+  } catch (err) { /* best effort */ }
+  updateChatNotifDots();
+}
+
+function updateChatNotifDots() {
+  document.getElementById('chatNotifDotGreen').hidden = pendingGroupInvites.length === 0;
+  document.getElementById('chatNotifDotRed').hidden = dmUnreadRoomIds.size === 0;
+}
+
+function renderNotifPopover() {
+  const list = document.getElementById('chatNotifList');
+  const items = [];
+
+  pendingGroupInvites.forEach((inv) => {
+    items.push(`
+      <div class="chat-notif-item">
+        <div class="chat-notif-item-text">Invited to <span class="chat-notif-item-name">${escapeHtml(inv.roomName)}</span></div>
+        <div class="chat-notif-item-actions">
+          <button class="chat-notif-accept" data-accept-invite="${inv.roomId}" data-invite-name="${escapeHtml(inv.roomName)}">Accept</button>
+          <button class="chat-notif-decline" data-decline-invite="${inv.roomId}">Decline</button>
+        </div>
+      </div>
+    `);
+  });
+
+  dmUnreadRoomIds.forEach((roomId) => {
+    const room = myDmRooms.find((r) => r.id === roomId);
+    items.push(`
+      <div class="chat-notif-item">
+        <div class="chat-notif-item-text">New message from <span class="chat-notif-item-name">${escapeHtml(room?.otherName || 'someone')}</span></div>
+        <div class="chat-notif-item-actions">
+          <button class="chat-notif-accept" data-open-dm="${roomId}" data-open-dm-name="${escapeHtml(room?.otherName || 'Direct Message')}">Open</button>
+        </div>
+      </div>
+    `);
+  });
+
+  list.innerHTML = items.join('') || '<p class="chat-notif-empty">No notifications.</p>';
+
+  list.querySelectorAll('[data-accept-invite]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await supabaseClient.rpc('accept_group_invite', { p_room_id: btn.dataset.acceptInvite, p_share_key: getShareKey() });
+        pendingGroupInvites = pendingGroupInvites.filter((i) => i.roomId !== btn.dataset.acceptInvite);
+        updateChatNotifDots();
+        document.getElementById('chatNotifPopover').hidden = true;
+        await switchChatView('groups');
+        await openChatRoom(btn.dataset.acceptInvite, btn.dataset.inviteName, false);
+      } catch (err) { /* best effort */ }
+    });
+  });
+  list.querySelectorAll('[data-decline-invite]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await supabaseClient.rpc('decline_group_invite', { p_room_id: btn.dataset.declineInvite, p_share_key: getShareKey() });
+        pendingGroupInvites = pendingGroupInvites.filter((i) => i.roomId !== btn.dataset.declineInvite);
+        updateChatNotifDots();
+        renderNotifPopover();
+      } catch (err) { /* best effort */ }
+    });
+  });
+  list.querySelectorAll('[data-open-dm]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      document.getElementById('chatNotifPopover').hidden = true;
+      await switchChatView('dms');
+      await openChatRoom(btn.dataset.openDm, btn.dataset.openDmName, true);
+    });
+  });
 }
 
 function clearPendingImage() {
@@ -913,9 +1327,11 @@ async function sendChatMessage() {
       let imageUrl = null;
       if (localImageUrl) imageUrl = await uploadChatImage(localImageUrl, myKey);
 
-      const { error } = await supabaseClient.from('public_chat_messages').insert({
+      const { error } = await supabaseClient.from('chat_messages').insert({
+        room_id: activeRoomId,
         sender_share_key: myKey,
         sender_name: senderName,
+        sender_digital_id: getOrCreateDigitalId(),
         body: body || null,
         image_url: imageUrl,
       });
@@ -975,6 +1391,97 @@ function initChatComposer() {
   const backdrop = document.getElementById('chatExpandBackdrop');
   expandBtn.addEventListener('click', toggleChatExpanded);
   backdrop.addEventListener('click', () => setChatExpanded(false));
+
+  document.getElementById('chatRoomSelector').addEventListener('click', toggleChatRoomDropdown);
+  document.querySelectorAll('.chat-room-dropdown-item').forEach((btn) => {
+    btn.addEventListener('click', () => switchChatView(btn.dataset.roomView));
+  });
+  document.getElementById('btnChatBack').addEventListener('click', backFromChatRoom);
+
+  document.getElementById('btnChatRefresh').addEventListener('click', async () => {
+    await refreshChatNotifications();
+    if (!viewingRoomThread) {
+      if (currentChatView === 'groups') await renderGroupRoomList();
+      else if (currentChatView === 'dms') await renderDmRoomList();
+    } else {
+      await loadRoomMessages(activeRoomId);
+    }
+  });
+
+  document.getElementById('btnChatNotifications').addEventListener('click', () => {
+    const popover = document.getElementById('chatNotifPopover');
+    const wasHidden = popover.hidden;
+    document.getElementById('chatRoomDropdown').hidden = true;
+    popover.hidden = !wasHidden;
+    if (wasHidden) renderNotifPopover();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.chat-room-selector') && !e.target.closest('.chat-room-dropdown')) {
+      document.getElementById('chatRoomDropdown').hidden = true;
+    }
+    if (!e.target.closest('.chat-bell-wrap')) {
+      document.getElementById('chatNotifPopover').hidden = true;
+    }
+    if (!e.target.closest('.chat-user-menu') && !e.target.closest('[data-user-name]')) {
+      closeChatUserMenu();
+    }
+  });
+
+  document.getElementById('btnNewGroupAddInvite').addEventListener('click', () => {
+    const input = document.getElementById('newGroupInviteInput');
+    const id = input.value.trim().toUpperCase();
+    if (id && !newGroupInviteIds.includes(id)) {
+      newGroupInviteIds.push(id);
+      renderNewGroupChips();
+    }
+    input.value = '';
+  });
+  document.getElementById('btnNewGroupCancel').addEventListener('click', () => switchChatView('groups'));
+  document.getElementById('btnNewGroupCreate').addEventListener('click', createGroupChat);
+
+  document.getElementById('btnNewDmCancel').addEventListener('click', () => switchChatView('dms'));
+  document.getElementById('btnNewDmStart').addEventListener('click', () => {
+    const id = document.getElementById('newDmDigitalIdInput').value.trim().toUpperCase();
+    startDmByDigitalId(id);
+  });
+
+  document.getElementById('btnChatUserInvite').addEventListener('click', async () => {
+    if (!chatUserMenuTarget) return;
+    const target = chatUserMenuTarget;
+    closeChatUserMenu();
+
+    if (viewingRoomThread && activeRoomId && !currentRoomIsDm) {
+      // Already inside a group room — invite them into this one directly.
+      try {
+        await supabaseClient.rpc('invite_to_group_room', {
+          p_room_id: activeRoomId,
+          p_inviter_share_key: getShareKey(),
+          p_invitee_digital_id: target.digitalId,
+        });
+      } catch (err) { /* best effort */ }
+      return;
+    }
+
+    // Otherwise, start a new group with them pre-added as an invite.
+    await switchChatView('groups');
+    openNewGroupForm();
+    if (target.digitalId && !newGroupInviteIds.includes(target.digitalId)) {
+      newGroupInviteIds.push(target.digitalId);
+      renderNewGroupChips();
+    }
+  });
+  document.getElementById('btnChatUserDm').addEventListener('click', () => {
+    if (!chatUserMenuTarget) return;
+    const target = chatUserMenuTarget;
+    closeChatUserMenu();
+    if (target.digitalId) startDmByDigitalId(target.digitalId);
+  });
+  document.getElementById('btnChatUserAddFriend').addEventListener('click', () => {
+    if (!chatUserMenuTarget) return;
+    addFriend(chatUserMenuTarget.digitalId, chatUserMenuTarget.name);
+    closeChatUserMenu();
+  });
 }
 
 const ICON_EXPAND = '<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/>';
@@ -1526,7 +2033,9 @@ async function init() {
   renderLeaderboardGroups();
   renderPromoCards();
   initChatComposer();
-  initChat();
+  await syncChatIdentity();
+  await switchChatView('public');
+  await refreshChatNotifications();
   initAdminSystem();
 
   document.querySelectorAll('.nav-item').forEach(btn => {

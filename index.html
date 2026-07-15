@@ -187,19 +187,72 @@
         <div class="chat-expand-backdrop" id="chatExpandBackdrop" hidden></div>
         <div class="chat-card" id="chatCard">
           <div class="chat-header">
+            <button class="chat-back-btn" id="btnChatBack" aria-label="Back" hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
             <div class="avatar-stack" id="chatAvatarStack"></div>
             <div class="chat-header-text">
-              <div class="chat-title">Community Chat</div>
+              <button class="chat-room-selector" id="chatRoomSelector">
+                <span id="chatRoomSelectorLabel">Public</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
               <div class="chat-subtitle" id="chatPresence">Connecting…</div>
             </div>
-            <button class="chat-expand-btn" id="btnChatExpand" aria-label="Expand chat" title="Expand">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>
-            </button>
+            <div class="chat-header-actions">
+              <button class="chat-icon-btn" id="btnChatRefresh" aria-label="Refresh">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M20.49 9A9 9 0 0 0 5.6 5.6L1 10m22 4-4.6 4.4A9 9 0 0 1 3.51 15"/></svg>
+              </button>
+              <div class="chat-bell-wrap">
+                <button class="chat-icon-btn" id="btnChatNotifications" aria-label="Notifications">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </button>
+                <span class="chat-notif-dot chat-notif-dot-red" id="chatNotifDotRed" hidden></span>
+                <span class="chat-notif-dot chat-notif-dot-green" id="chatNotifDotGreen" hidden></span>
+              </div>
+              <button class="chat-expand-btn" id="btnChatExpand" aria-label="Expand chat" title="Expand">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="chat-room-dropdown" id="chatRoomDropdown" hidden>
+            <button class="chat-room-dropdown-item" data-room-view="public">Public</button>
+            <button class="chat-room-dropdown-item" data-room-view="groups">Group Chats</button>
+            <button class="chat-room-dropdown-item" data-room-view="dms">Direct Messages</button>
+          </div>
+
+          <div class="chat-notif-popover" id="chatNotifPopover" hidden>
+            <div id="chatNotifList"></div>
+          </div>
+
+          <div class="chat-room-list" id="chatRoomList" hidden></div>
+
+          <div class="chat-new-room-form" id="chatNewGroupForm" hidden>
+            <input class="field-input" id="newGroupNameInput" type="text" placeholder="Group name">
+            <div class="chat-invite-row">
+              <input class="field-input" id="newGroupInviteInput" type="text" placeholder="Invite by Digital ID (e.g. LH-XXXXXX)">
+              <button class="btn-outline chat-invite-add-btn" id="btnNewGroupAddInvite">Add</button>
+            </div>
+            <div class="chat-invite-chips" id="newGroupInviteChips"></div>
+            <p class="field-note" id="newGroupNote"></p>
+            <div class="admin-form-actions">
+              <button class="btn-outline" id="btnNewGroupCancel">Cancel</button>
+              <button class="btn-primary" id="btnNewGroupCreate">Create</button>
+            </div>
+          </div>
+
+          <div class="chat-new-room-form" id="chatNewDmForm" hidden>
+            <input class="field-input" id="newDmDigitalIdInput" type="text" placeholder="Their Digital ID (e.g. LH-XXXXXX)">
+            <p class="field-note" id="newDmNote"></p>
+            <div class="admin-form-actions">
+              <button class="btn-outline" id="btnNewDmCancel">Cancel</button>
+              <button class="btn-primary" id="btnNewDmStart">Start Chat</button>
+            </div>
           </div>
 
           <div class="chat-messages" id="chatMessages"></div>
 
-          <div class="chat-input-row">
+          <div class="chat-input-row" id="chatInputRow">
             <button class="chat-attach-btn" id="chatAttachBtn" aria-label="Attach image">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
             </button>
@@ -213,6 +266,14 @@
             <img id="chatPendingImagePreview" alt="">
             <button id="chatPendingImageRemove" aria-label="Remove image">✕</button>
           </div>
+        </div>
+
+        <!-- User context menu (tap a sender's name in chat) -->
+        <div class="chat-user-menu" id="chatUserMenu" hidden>
+          <p class="chat-user-menu-name" id="chatUserMenuName"></p>
+          <button class="chat-user-menu-item" id="btnChatUserInvite">Invite to Group Chat</button>
+          <button class="chat-user-menu-item" id="btnChatUserDm">Send Direct Message</button>
+          <button class="chat-user-menu-item" id="btnChatUserAddFriend">Add to Friends List</button>
         </div>
 
         <div id="promoCardsContainer"></div>
