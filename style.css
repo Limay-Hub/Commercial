@@ -465,6 +465,16 @@ svg { width: 22px; height: 22px; flex-shrink: 0; }
 .profile-item:last-child { border-bottom: none; }
 .profile-item svg { width: 18px; height: 18px; color: var(--outline); }
 
+.btn-check-update { margin-top: var(--stack-lg); }
+.field-note.field-note-muted { color: var(--on-surface-variant); text-align: center; }
+.app-version-label {
+  text-align: center;
+  font-family: var(--font-label);
+  font-size: 11px;
+  color: var(--outline);
+  margin: 4px 0 24px;
+}
+
 /* ===== Bottom nav ===== */
 .bottom-nav {
   position: fixed;

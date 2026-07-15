@@ -1256,7 +1256,29 @@ async function init() {
 
   document.getElementById('fabAdd').addEventListener('click', () => switchView('search'));
 
+  document.getElementById('appVersionLabel').textContent = `Version ${APP_VERSION}`;
+  document.getElementById('btnCheckUpdate').addEventListener('click', checkForUpdate);
+
   switchView('home');
+}
+
+async function checkForUpdate() {
+  const note = document.getElementById('updateCheckNote');
+  if (!('serviceWorker' in navigator)) { note.textContent = 'Updates are not supported in this browser.'; return; }
+  note.textContent = 'Checking…';
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) { note.textContent = 'Update service not active yet — try reloading the page.'; return; }
+    await reg.update();
+    if (reg.waiting) {
+      note.textContent = 'A new version is ready.';
+      showUpdateBanner(reg);
+    } else {
+      note.textContent = "You're on the latest version.";
+    }
+  } catch (err) {
+    note.textContent = 'Could not check for updates — check your connection.';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
