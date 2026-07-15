@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c5252">
+<title>Limay Hub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Work+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===== Shared top bar (Home / Search tabs) ===== -->
+  <header class="topbar" id="topbar">
+    <div class="topbar-brand">
+      <svg class="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-7.58 7-12.5A7 7 0 0 0 5 9.5C5 14.42 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      <span class="topbar-title">LIMAY HUB</span>
+    </div>
+    <button class="icon-btn" id="notifBtn" aria-label="Notifications">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </button>
+  </header>
+
+  <main id="views">
+
+    <!-- ===== HOME ===== -->
+    <section class="view" id="view-home" data-view>
+      <div class="page">
+        <div class="hero">
+          <h1 class="hero-title">Find your local<br>favorites.</h1>
+          <p class="hero-sub">Explore the best stores and services in your municipality.</p>
+        </div>
+
+        <div class="search-bar" id="homeSearchBar" role="button" tabindex="0">
+          <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span class="search-placeholder">Search for stores or services...</span>
+        </div>
+
+        <div class="section-heading">
+          <h2>Categories</h2>
+          <button class="link-btn" id="seeAllCategories">See All</button>
+        </div>
+
+        <div class="category-grid" id="categoryGrid"></div>
+
+        <div class="section-heading">
+          <h2>Discover Local Gems</h2>
+        </div>
+
+        <div class="gem-banner" id="gemBanner">
+          <img class="gem-img" id="gemImg" alt="">
+          <div class="gem-overlay">
+            <span class="gem-badge">Popular Choice</span>
+            <h3 class="gem-title" id="gemTitle"></h3>
+            <p class="gem-sub" id="gemSub"></p>
+          </div>
+        </div>
+      </div>
+
+      <button class="fab" id="fabAdd" aria-label="Add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </section>
+
+    <!-- ===== SEARCH ===== -->
+    <section class="view" id="view-search" data-view hidden>
+      <div class="page">
+        <div class="search-bar" id="searchBar">
+          <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input class="search-input" id="searchInput" type="text" placeholder="Search local restaurants...">
+        </div>
+
+        <div class="chip-row" id="cuisineChips"></div>
+
+        <div class="section-heading">
+          <h2>Restaurants Nearby</h2>
+          <span class="result-count" id="resultCount"></span>
+        </div>
+
+        <div class="store-list" id="storeList"></div>
+      </div>
+    </section>
+
+    <!-- ===== PUBLIC ===== -->
+    <section class="view" id="view-public" data-view hidden>
+      <div class="page">
+        <div class="page-heading">
+          <h1>Community Favorites</h1>
+          <p class="page-sub">Top-rated local gems this week.</p>
+        </div>
+
+        <div id="leaderboardGroups"></div>
+
+        <div class="section-heading">
+          <h2>Community Chat</h2>
+        </div>
+        <div class="chat-card" id="chatCard">
+          <div class="chat-header">
+            <div class="avatar-stack" id="chatAvatarStack"></div>
+            <div class="chat-header-text">
+              <div class="chat-title">Community Chat</div>
+              <div class="chat-subtitle" id="chatPresence">Connecting…</div>
+            </div>
+          </div>
+
+          <div class="chat-messages" id="chatMessages"></div>
+
+          <div class="chat-input-row">
+            <button class="chat-attach-btn" id="chatAttachBtn" aria-label="Attach image">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <input type="file" id="chatImageInput" accept="image/*" hidden>
+            <input class="chat-text-input" id="chatTextInput" type="text" placeholder="Share something with the community...">
+            <button class="chat-send-btn" id="chatSendBtn" aria-label="Send">
+              <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>
+            </button>
+          </div>
+          <div class="chat-pending-image" id="chatPendingImage" hidden>
+            <img id="chatPendingImagePreview" alt="">
+            <button id="chatPendingImageRemove" aria-label="Remove image">✕</button>
+          </div>
+        </div>
+
+        <div id="promoCardsContainer"></div>
+      </div>
+    </section>
+
+    <!-- ===== Image lightbox ===== -->
+    <div class="lightbox" id="lightbox" hidden>
+      <img id="lightboxImg" alt="">
+    </div>
+
+    <!-- ===== FAVORITES ===== -->
+    <section class="view" id="view-favorites" data-view hidden>
+      <div class="page">
+        <div class="page-heading">
+          <h1>Favorites</h1>
+          <p class="page-sub">Stores and services you've saved.</p>
+        </div>
+        <div class="store-list" id="favoritesList"></div>
+        <div class="empty-state" id="favoritesEmpty" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>
+          <p>No favorites yet</p>
+          <span>Tap the heart on any store to save it here.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PROFILE ===== -->
+    <section class="view" id="view-profile" data-view hidden>
+      <div class="page">
+        <div class="page-heading">
+          <h1>Profile</h1>
+        </div>
+        <div class="profile-card">
+          <div class="profile-avatar">LH</div>
+          <div>
+            <div class="profile-name" id="profileName">Guest User</div>
+            <div class="profile-sub">Limay Municipality</div>
+          </div>
+        </div>
+        <div class="profile-menu">
+          <button class="profile-item">
+            <span>My Reviews</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button class="profile-item">
+            <span>Saved Addresses</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button class="profile-item">
+            <span>Notification Settings</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button class="profile-item">
+            <span>About Limay Hub</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+          <button class="profile-item" id="btnAdminLoginMenuItem">
+            <span id="adminLoginMenuLabel">Admin Login</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STORE DETAIL ===== -->
+    <section class="view view-detail" id="view-detail" data-view hidden>
+      <div class="detail-hero">
+        <img class="detail-hero-img" id="detailImg" alt="">
+        <button class="icon-btn detail-back" id="detailBack" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button class="icon-btn detail-fav" id="detailFav" aria-label="Save to favorites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>
+        </button>
+      </div>
+
+      <div class="page">
+        <div class="detail-headline">
+          <div>
+            <h1 class="detail-name" id="detailName"></h1>
+            <p class="detail-desc" id="detailDesc"></p>
+          </div>
+          <span class="rating-chip" id="detailRating"></span>
+        </div>
+
+        <span class="status-chip" id="detailStatus"></span>
+
+        <div class="section-heading">
+          <h2>Services &amp; Pricing</h2>
+        </div>
+        <div class="services-card" id="servicesCard"></div>
+
+        <div class="section-heading">
+          <h2>Find Us</h2>
+        </div>
+        <div class="address-row">
+          <svg class="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s7-7.58 7-12.5A7 7 0 0 0 5 9.5C5 14.42 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+          <span id="detailAddress"></span>
+        </div>
+        <div class="map-placeholder" id="mapPlaceholder"></div>
+        <button class="btn-outline" id="directionsBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>
+          Get Directions
+        </button>
+
+        <div class="section-heading">
+          <h2>Fulfillment</h2>
+        </div>
+        <div class="fulfillment-row" id="fulfillmentRow"></div>
+
+        <button class="btn-primary btn-order" id="orderBtn">Order for Pickup</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== Admin login overlay ===== -->
+  <div class="overlay" id="adminLoginOverlay" hidden>
+    <div class="overlay-sheet">
+      <div class="overlay-header">
+        <h2>Admin Login</h2>
+        <button class="icon-btn" id="btnCloseAdminLogin" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="overlay-body">
+        <label class="field-label" for="adminLoginPassword">Password</label>
+        <input class="field-input" id="adminLoginPassword" type="password" placeholder="Enter admin password">
+        <p class="field-note" id="adminLoginNote"></p>
+        <button class="btn-primary" id="btnAdminLoginSubmit">Log In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Admin drawer: edge tab + pill + panel ===== -->
+  <button type="button" class="admin-drawer-tab" id="adminDrawerTab" hidden aria-label="Open admin panel">
+    <span class="admin-drawer-tab-bump" aria-hidden="true"></span>
+  </button>
+  <div class="admin-drawer-backdrop" id="adminDrawerBackdrop" hidden></div>
+  <div class="admin-drawer-pill" id="adminDrawerPill" hidden>
+    <button type="button" class="admin-drawer-pill-item" data-target="adminStoreManagerSection" title="Store Manager">🏬</button>
+    <button type="button" class="admin-drawer-pill-item" data-target="adminGemManagerSection" title="Featured Gem">✨</button>
+    <button type="button" class="admin-drawer-pill-item" data-target="adminPromoManagerSection" title="Promo Cards">📣</button>
+    <button type="button" class="admin-drawer-pill-item" data-target="adminChatModerationSection" title="Chat Moderation">💬</button>
+    <span class="admin-drawer-pill-sep" aria-hidden="true"></span>
+    <button type="button" class="admin-drawer-pill-item" id="btnAdminLogoutPill" title="Log Out">⏻</button>
+  </div>
+
+  <div class="admin-drawer" id="adminDrawer" hidden>
+    <div class="admin-drawer-header">
+      <button type="button" class="icon-btn" id="btnCloseAdminDrawer" aria-label="Back to admin menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <p class="admin-drawer-title">Admin Panel</p>
+    </div>
+    <div class="admin-drawer-scroll">
+
+      <!-- Store Manager -->
+      <div class="admin-section" id="adminStoreManagerSection">
+        <h3>Store Manager</h3>
+        <div id="adminStoreList"></div>
+        <button class="btn-outline" id="btnAdminNewStore">+ Add New Store</button>
+
+        <div class="admin-form" id="adminStoreForm" hidden>
+          <input type="hidden" id="asStoreId">
+          <label class="field-label">Name</label>
+          <input class="field-input" id="asName" type="text">
+          <label class="field-label">Slug (unique id, e.g. hearth-pizzeria)</label>
+          <input class="field-input" id="asSlug" type="text">
+          <label class="field-label">Category</label>
+          <select class="field-input" id="asCategory"></select>
+          <label class="field-label">Cuisine</label>
+          <input class="field-input" id="asCuisine" type="text">
+          <label class="field-label">Rating (0-5)</label>
+          <input class="field-input" id="asRating" type="number" step="0.1" min="0" max="5">
+          <label class="field-label">Description</label>
+          <textarea class="field-input" id="asDescription" rows="3"></textarea>
+          <label class="field-label">Status</label>
+          <select class="field-input" id="asStatus">
+            <option value="open">Open</option>
+            <option value="closing">Closing Soon</option>
+            <option value="closed">Closed</option>
+          </select>
+          <label class="field-label">Status Label (e.g. "Open Now", "Opens 8:00 AM")</label>
+          <input class="field-input" id="asStatusLabel" type="text">
+          <label class="field-label">Image URL</label>
+          <input class="field-input" id="asImageUrl" type="text">
+          <label class="field-label">Address</label>
+          <input class="field-input" id="asAddress" type="text">
+          <label class="field-label">Fulfillment Methods</label>
+          <div class="checkbox-row">
+            <label><input type="checkbox" value="Store Pickup" class="asFulfillment"> Store Pickup</label>
+            <label><input type="checkbox" value="Curbside" class="asFulfillment"> Curbside</label>
+            <label><input type="checkbox" value="Local Delivery" class="asFulfillment"> Local Delivery</label>
+          </div>
+
+          <label class="field-label">Services &amp; Pricing</label>
+          <div id="asServicesList"></div>
+          <button class="btn-outline" id="btnAsAddService" type="button">+ Add Service Row</button>
+
+          <p class="field-note" id="adminStoreFormNote"></p>
+          <div class="admin-form-actions">
+            <button class="btn-outline" id="btnAsCancel">Cancel</button>
+            <button class="btn-primary" id="btnAsSave">Save Store</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Featured Gem Manager -->
+      <div class="admin-section" id="adminGemManagerSection" hidden>
+        <h3>Featured Gem (Home banner)</h3>
+        <label class="field-label">Title</label>
+        <input class="field-input" id="agTitle" type="text">
+        <label class="field-label">Subtitle</label>
+        <input class="field-input" id="agSubtitle" type="text">
+        <label class="field-label">Image URL</label>
+        <input class="field-input" id="agImageUrl" type="text">
+        <p class="field-note" id="adminGemNote"></p>
+        <button class="btn-primary" id="btnAgSave">Save</button>
+      </div>
+
+      <!-- Promo Cards Manager -->
+      <div class="admin-section" id="adminPromoManagerSection" hidden>
+        <h3>Promo Cards (Public tab)</h3>
+        <div id="adminPromoCardsList"></div>
+        <p class="field-note" id="adminPromoNote"></p>
+      </div>
+
+      <!-- Chat Moderation -->
+      <div class="admin-section" id="adminChatModerationSection" hidden>
+        <h3>Chat Moderation</h3>
+        <div id="adminChatModerationList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Update banner ===== -->
+  <div class="update-banner" id="updateBanner" hidden>
+    <span>🆕 New version available</span>
+    <button id="updateBtn">Update Now</button>
+  </div>
+
+  <!-- ===== Bottom nav ===== -->
+  <nav class="bottom-nav" id="bottomNav">
+    <button class="nav-item" data-nav="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" data-nav="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <span>Search</span>
+    </button>
+    <button class="nav-item" data-nav="public">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+      <span>Public</span>
+    </button>
+    <button class="nav-item" data-nav="favorites">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.8 1-1a5.5 5.5 0 0 0 0-7.6z"/></svg>
+      <span>Favorites</span>
+    </button>
+    <button class="nav-item" data-nav="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
