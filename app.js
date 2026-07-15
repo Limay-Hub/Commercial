@@ -665,6 +665,37 @@ function initChatComposer() {
   });
 
   document.getElementById('lightbox').addEventListener('click', closeLightbox);
+
+  const expandBtn = document.getElementById('btnChatExpand');
+  const backdrop = document.getElementById('chatExpandBackdrop');
+  expandBtn.addEventListener('click', toggleChatExpanded);
+  backdrop.addEventListener('click', () => setChatExpanded(false));
+}
+
+const ICON_EXPAND = '<path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/>';
+const ICON_MINIMIZE = '<path d="M9 3v5H4M15 3v5h5M9 21v-5H4M15 21v-5h5"/>';
+
+function setChatExpanded(expanded) {
+  const card = document.getElementById('chatCard');
+  const backdrop = document.getElementById('chatExpandBackdrop');
+  const btn = document.getElementById('btnChatExpand');
+
+  card.classList.toggle('is-expanded', expanded);
+  backdrop.hidden = !expanded;
+  btn.innerHTML = svgIcon(expanded ? ICON_MINIMIZE : ICON_EXPAND);
+  btn.title = expanded ? 'Minimize' : 'Expand';
+  btn.setAttribute('aria-label', expanded ? 'Minimize chat' : 'Expand chat');
+  document.body.style.overflow = expanded ? 'hidden' : '';
+
+  if (expanded) {
+    const list = document.getElementById('chatMessages');
+    list.scrollTop = list.scrollHeight;
+  }
+}
+
+function toggleChatExpanded() {
+  const isExpanded = document.getElementById('chatCard').classList.contains('is-expanded');
+  setChatExpanded(!isExpanded);
 }
 
 function renderCuisineChips() {
@@ -782,6 +813,7 @@ function updateFavButton() {
    Navigation
    ============================================================ */
 function switchView(name) {
+  if (typeof setChatExpanded === 'function') setChatExpanded(false);
   state.view = name;
   document.querySelectorAll('[data-view]').forEach(v => v.hidden = true);
   document.getElementById(`view-${name}`).hidden = false;
@@ -874,7 +906,7 @@ function openAdminSection(sectionId) {
 }
 
 async function adminRpc(fnName, params) {
-  if (!supabaseClient) throw new Error('Not available offline.');
+  if (!supabaseClient) throw new Error('Supabase is not configured yet — add SUPABASE_URL/SUPABASE_ANON_KEY to config.js.');
   const { data, error } = await supabaseClient.rpc(fnName, { p_password: adminSession.password, ...params });
   if (error) throw error;
   return data;
@@ -1134,7 +1166,7 @@ function initAdminSystem() {
     const pw = document.getElementById('adminLoginPassword').value;
     const note = document.getElementById('adminLoginNote');
     if (!pw) { note.textContent = 'Enter the admin password.'; return; }
-    if (!supabaseClient) { note.textContent = 'Not available offline.'; return; }
+    if (!supabaseClient) { note.textContent = 'Supabase is not set up yet — see the README/setup steps.'; return; }
     note.textContent = 'Checking…';
     try {
       const { data, error } = await supabaseClient.rpc('verify_admin_login', { p_password: pw });

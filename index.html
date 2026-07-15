@@ -101,6 +101,7 @@
         <div class="section-heading">
           <h2>Community Chat</h2>
         </div>
+        <div class="chat-expand-backdrop" id="chatExpandBackdrop" hidden></div>
         <div class="chat-card" id="chatCard">
           <div class="chat-header">
             <div class="avatar-stack" id="chatAvatarStack"></div>
@@ -108,6 +109,9 @@
               <div class="chat-title">Community Chat</div>
               <div class="chat-subtitle" id="chatPresence">Connecting…</div>
             </div>
+            <button class="chat-expand-btn" id="btnChatExpand" aria-label="Expand chat" title="Expand">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"/></svg>
+            </button>
           </div>
 
           <div class="chat-messages" id="chatMessages"></div>
