@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.5';
+const APP_VERSION = 'LH_SYS_V.1.6';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -1722,9 +1722,10 @@ function switchView(name) {
   state.view = name;
   document.querySelectorAll('[data-view]').forEach(v => v.hidden = true);
   document.getElementById(`view-${name}`).hidden = false;
+  updateAnnouncementStripVisibility();
 
   const topbar = document.getElementById('topbar');
-  topbar.style.display = (name === 'home' || name === 'search' || name === 'public') ? 'flex' : 'none';
+  topbar.style.display = (name !== 'profile') ? 'flex' : 'none';
 
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.nav === name);
@@ -1744,6 +1745,7 @@ function openDetail(storeId) {
   document.getElementById('view-detail').hidden = false;
   document.getElementById('topbar').style.display = 'none';
   document.getElementById('bottomNav').style.display = 'none';
+  document.getElementById('announcementStrip').hidden = true;
   document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
   window.scrollTo(0, 0);
 }
@@ -1751,6 +1753,71 @@ function openDetail(storeId) {
 function closeDetail() {
   state.detailStoreId = null;
   switchView(state.view === 'detail' ? 'home' : state.view);
+}
+
+/* ============================================================
+   Public Announcement (marquee strip, admin-postable)
+   ============================================================ */
+let currentAnnouncementText = '';
+
+function setMarqueeSpeed() {
+  const track = document.getElementById('announcementMarqueeTrack');
+  const singleWidth = track.children[0] ? track.children[0].getBoundingClientRect().width : 0;
+  const pxPerSecond = 55;
+  track.style.animationDuration = Math.max(6, singleWidth / pxPerSecond) + 's';
+}
+
+function renderAnnouncement(message) {
+  currentAnnouncementText = message || '';
+  document.querySelectorAll('.announcement-marquee-text').forEach((span) => {
+    span.textContent = currentAnnouncementText;
+  });
+  if (currentAnnouncementText) setMarqueeSpeed();
+  updateAnnouncementStripVisibility();
+}
+
+// Shown on every tab except Menu, and only when there's actually a
+// message to show — no empty strip taking up space.
+function updateAnnouncementStripVisibility() {
+  const strip = document.getElementById('announcementStrip');
+  strip.hidden = !currentAnnouncementText || state.view === 'profile';
+}
+
+async function loadAnnouncement() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient.from('community_announcements').select('message').eq('id', 1).maybeSingle();
+    if (error) throw error;
+    renderAnnouncement(data && data.message);
+  } catch (err) { /* best effort — strip just stays hidden */ }
+}
+
+function initAnnouncementAdminWidget() {
+  document.getElementById('btnPostAnnouncement').addEventListener('click', async () => {
+    const note = document.getElementById('announcementAdminNote');
+    const message = document.getElementById('announcementInput').value.trim();
+    note.textContent = 'Posting…';
+    try {
+      await adminRpc('admin_set_announcement', { p_message: message });
+      renderAnnouncement(message);
+      note.textContent = 'Posted.';
+    } catch (err) {
+      note.textContent = 'Could not post: ' + (err.message || 'unknown error');
+    }
+  });
+
+  document.getElementById('btnClearAnnouncement').addEventListener('click', async () => {
+    const note = document.getElementById('announcementAdminNote');
+    document.getElementById('announcementInput').value = '';
+    note.textContent = 'Clearing…';
+    try {
+      await adminRpc('admin_set_announcement', { p_message: '' });
+      renderAnnouncement('');
+      note.textContent = 'Cleared.';
+    } catch (err) {
+      note.textContent = 'Could not clear: ' + (err.message || 'unknown error');
+    }
+  });
 }
 
 /* ============================================================
@@ -1769,6 +1836,10 @@ function refreshAdminUI() {
   document.getElementById('adminDrawerTab').hidden = !loggedIn;
   document.getElementById('adminLoginMenuLabel').textContent = loggedIn ? 'Admin Logout' : 'Admin Login';
   if (!loggedIn) closeAdminDrawerAll();
+
+  const widget = document.getElementById('adminAnnouncementWidget');
+  widget.hidden = !loggedIn;
+  if (loggedIn) document.getElementById('announcementInput').value = currentAnnouncementText;
 }
 
 let adminPillOpen = false;
@@ -2129,6 +2200,7 @@ async function init() {
   await syncChatIdentity();
   await switchChatView('public');
   await refreshChatNotifications();
+  await loadAnnouncement();
   initAdminSystem();
 
   document.querySelectorAll('.nav-item').forEach(btn => {
@@ -2169,6 +2241,7 @@ async function init() {
   document.getElementById('btnCheckUpdate').addEventListener('click', checkForUpdate);
   initThemeToggle();
   initIdentityWidget();
+  initAnnouncementAdminWidget();
 
   switchView('home');
 }

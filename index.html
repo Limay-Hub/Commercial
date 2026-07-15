@@ -144,6 +144,13 @@
     </button>
   </header>
 
+  <div class="announcement-strip" id="announcementStrip" hidden>
+    <div class="announcement-marquee-track" id="announcementMarqueeTrack">
+      <span class="announcement-marquee-text"></span>
+      <span class="announcement-marquee-text"></span>
+    </div>
+  </div>
+
   <main id="views">
 
     <!-- ===== HOME ===== -->
@@ -232,6 +239,16 @@
         </div>
 
         <div id="leaderboardGroups"></div>
+
+        <div class="admin-announcement-widget" id="adminAnnouncementWidget" hidden>
+          <p class="admin-announcement-label">📢 Public Announcement (Admin Only)</p>
+          <textarea class="field-input" id="announcementInput" rows="2" placeholder="Type a message to broadcast to everyone..."></textarea>
+          <div class="admin-form-actions">
+            <button class="btn-outline" id="btnClearAnnouncement">Clear</button>
+            <button class="btn-primary" id="btnPostAnnouncement">Post</button>
+          </div>
+          <p class="field-note" id="announcementAdminNote"></p>
+        </div>
 
         <div class="section-heading">
           <h2>Community Chat</h2>

@@ -197,3 +197,38 @@ end;
 $$;
 
 grant execute on function admin_delete_chat_message(text, uuid) to anon;
+
+-- ---------------------------------------------------------------------
+-- Public Announcement (admin-postable, shown as a marquee strip below
+-- the header on every tab except Menu)
+-- ---------------------------------------------------------------------
+create table if not exists community_announcements (
+  id integer primary key default 1,
+  message text not null default '',
+  updated_at timestamptz not null default now(),
+  constraint community_announcements_singleton check (id = 1)
+);
+
+alter table community_announcements enable row level security;
+
+create policy "announcement is publicly readable"
+  on community_announcements for select
+  to anon, authenticated
+  using (true);
+
+insert into community_announcements (id, message) values (1, '')
+on conflict (id) do nothing;
+
+create or replace function admin_set_announcement(p_password text, p_message text) returns void
+language plpgsql
+security definer
+as $$
+begin
+  if not verify_admin_login(p_password) then
+    raise exception 'Not authorized';
+  end if;
+  update community_announcements set message = p_message, updated_at = now() where id = 1;
+end;
+$$;
+
+grant execute on function admin_set_announcement(text) to anon;

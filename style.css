@@ -1286,6 +1286,55 @@ svg { width: 22px; height: 22px; flex-shrink: 0; }
 }
 .reg-success-icon svg { width: 32px; height: 32px; }
 
+/* ===== Public announcement marquee strip ===== */
+.announcement-strip {
+  height: 4mm;
+  min-height: 15px;
+  background: var(--primary);
+  overflow: hidden;
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 58px);
+  z-index: 19;
+}
+.announcement-strip[hidden] { display: none; }
+.announcement-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: announcement-scroll 14s linear infinite;
+}
+.announcement-marquee-text {
+  display: inline-block;
+  padding: 0 32px;
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 4mm;
+  color: var(--on-primary);
+  white-space: nowrap;
+}
+@keyframes announcement-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ===== Admin announcement widget (Public tab, above Community Chat) ===== */
+.admin-announcement-widget {
+  background: var(--error-container);
+  border-radius: var(--radius-lg);
+  padding: var(--inset-card);
+  margin-bottom: var(--stack-lg);
+}
+.admin-announcement-widget[hidden] { display: none; }
+.admin-announcement-label {
+  font-family: var(--font-label);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--on-error-container);
+  margin: 0 0 8px;
+}
+.admin-announcement-widget textarea { resize: vertical; }
+
 /* ===== Update banner ===== */
 .update-banner {
   position: fixed;
