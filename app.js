@@ -360,6 +360,24 @@ function initials(name) {
   return (name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
+// Digital ID: a short, human-shareable identifier (distinct from the
+// private share_key above) — same format Winfinity uses (excludes
+// 0/O/1/I to avoid look-alike mistakes when read aloud or copied by hand).
+const DIGITAL_ID_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function generateDigitalId() {
+  let code = '';
+  for (let i = 0; i < 6; i++) code += DIGITAL_ID_CHARS[Math.floor(Math.random() * DIGITAL_ID_CHARS.length)];
+  return `LH-${code}`;
+}
+function getOrCreateDigitalId() {
+  let id = localStorage.getItem('limayhub_digital_id');
+  if (!id) {
+    id = generateDigitalId();
+    localStorage.setItem('limayhub_digital_id', id);
+  }
+  return id;
+}
+
 /* ============================================================
    Rendering helpers
    ============================================================ */
@@ -385,6 +403,76 @@ function renderCategories() {
 
   grid.querySelectorAll('.category-card').forEach(btn => {
     btn.addEventListener('click', () => switchView('search'));
+  });
+}
+
+/* ============================================================
+   Welcome hero (Home tab): greeting, live clock, weather, Digital ID
+   ============================================================ */
+const LIMAY_COORDS = { lat: 14.5647, lng: 120.5941 }; // Limay, Bataan, Philippines
+
+const WEATHER_CODES = {
+  0: ['☀️', 'Clear'], 1: ['🌤️', 'Mostly clear'], 2: ['⛅', 'Partly cloudy'], 3: ['☁️', 'Overcast'],
+  45: ['🌫️', 'Fog'], 48: ['🌫️', 'Fog'],
+  51: ['🌦️', 'Drizzle'], 53: ['🌦️', 'Drizzle'], 55: ['🌦️', 'Drizzle'],
+  61: ['🌧️', 'Light rain'], 63: ['🌧️', 'Rain'], 65: ['🌧️', 'Heavy rain'],
+  80: ['🌧️', 'Rain showers'], 81: ['🌧️', 'Rain showers'], 82: ['🌧️', 'Heavy showers'],
+  95: ['⛈️', 'Thunderstorm'], 96: ['⛈️', 'Thunderstorm'], 99: ['⛈️', 'Thunderstorm'],
+};
+
+function greetingForHour(hour) {
+  if (hour < 5) return 'Good night,';
+  if (hour < 12) return 'Good morning,';
+  if (hour < 18) return 'Good afternoon,';
+  return 'Good evening,';
+}
+
+function updateWelcomeDateTime() {
+  const now = new Date();
+  const opts = { timeZone: 'Asia/Manila', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' };
+  document.getElementById('welcomeDateTime').textContent = now.toLocaleString('en-US', opts);
+  const manilaHour = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hour12: false }), 10);
+  document.getElementById('welcomeGreeting').textContent = greetingForHour(manilaHour);
+}
+
+async function loadWelcomeWeather() {
+  const iconEl = document.getElementById('weatherIcon');
+  const tempEl = document.getElementById('weatherTemp');
+  try {
+    const cached = JSON.parse(localStorage.getItem('limayhub_weather_cache') || 'null');
+    if (cached && Date.now() - cached.at < 30 * 60000) {
+      iconEl.textContent = cached.icon;
+      tempEl.textContent = cached.temp;
+      return;
+    }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LIMAY_COORDS.lat}&longitude=${LIMAY_COORDS.lng}&current=temperature_2m,weather_code&timezone=Asia%2FManila`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    const data = await res.json();
+    const code = data?.current?.weather_code;
+    const temp = data?.current?.temperature_2m;
+    const [icon] = WEATHER_CODES[code] || ['🌡️', ''];
+    const tempText = typeof temp === 'number' ? `${Math.round(temp)}°C` : '--°';
+    iconEl.textContent = icon;
+    tempEl.textContent = tempText;
+    localStorage.setItem('limayhub_weather_cache', JSON.stringify({ icon, temp: tempText, at: Date.now() }));
+  } catch (err) {
+    iconEl.textContent = '🌡️';
+    tempEl.textContent = '--°';
+  }
+}
+
+function renderWelcomeHero() {
+  document.getElementById('welcomeName').textContent = getDisplayName();
+  document.getElementById('welcomeDigitalId').textContent = getOrCreateDigitalId();
+  updateWelcomeDateTime();
+  setInterval(updateWelcomeDateTime, 30000);
+  loadWelcomeWeather();
+
+  document.getElementById('btnCopyDigitalId').addEventListener('click', async () => {
+    const id = getOrCreateDigitalId();
+    try {
+      await navigator.clipboard.writeText(id);
+    } catch (err) { /* clipboard API unavailable — id is still visible to copy manually */ }
   });
 }
 
@@ -1211,6 +1299,7 @@ function initAdminSystem() {
 async function init() {
   await loadDataFromSupabase();
 
+  renderWelcomeHero();
   renderCategories();
   renderGemBanner();
   renderCuisineChips();
@@ -1258,8 +1347,27 @@ async function init() {
 
   document.getElementById('appVersionLabel').textContent = `Version ${APP_VERSION}`;
   document.getElementById('btnCheckUpdate').addEventListener('click', checkForUpdate);
+  initThemeToggle();
 
   switchView('home');
+}
+
+function applyStoredTheme() {
+  const saved = localStorage.getItem('limayhub_theme');
+  if (saved === 'dark' || saved === 'light') {
+    document.documentElement.setAttribute('data-theme', saved);
+  }
+  document.getElementById('darkModeToggle').checked = saved === 'dark'
+    || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+
+function initThemeToggle() {
+  applyStoredTheme();
+  document.getElementById('darkModeToggle').addEventListener('change', (e) => {
+    const theme = e.target.checked ? 'dark' : 'light';
+    localStorage.setItem('limayhub_theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+  });
 }
 
 async function checkForUpdate() {

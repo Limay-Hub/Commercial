@@ -33,9 +33,27 @@
     <!-- ===== HOME ===== -->
     <section class="view" id="view-home" data-view>
       <div class="page">
-        <div class="hero">
-          <h1 class="hero-title">Find your local<br>favorites.</h1>
-          <p class="hero-sub">Explore the best stores and services in your municipality.</p>
+        <div class="welcome-hero" id="welcomeHero">
+          <div class="welcome-hero-row">
+            <div>
+              <p class="welcome-greeting" id="welcomeGreeting">Good day,</p>
+              <h1 class="welcome-name" id="welcomeName">Citizen</h1>
+            </div>
+            <div class="welcome-weather" id="welcomeWeather">
+              <span class="weather-icon" id="weatherIcon">–</span>
+              <span class="weather-temp" id="weatherTemp">--°</span>
+            </div>
+          </div>
+          <p class="welcome-datetime" id="welcomeDateTime">–</p>
+          <div class="welcome-id-row">
+            <div>
+              <span class="welcome-id-label">Digital ID</span>
+              <span class="welcome-id-value" id="welcomeDigitalId">LH-------</span>
+            </div>
+            <button class="welcome-id-copy" id="btnCopyDigitalId" aria-label="Copy Digital ID">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
         </div>
 
         <div class="search-bar" id="homeSearchBar" role="button" tabindex="0">
@@ -161,7 +179,7 @@
     <section class="view" id="view-profile" data-view hidden>
       <div class="page">
         <div class="page-heading">
-          <h1>Profile</h1>
+          <h1>Menu</h1>
         </div>
         <div class="profile-card">
           <div class="profile-avatar">LH</div>
@@ -171,6 +189,13 @@
           </div>
         </div>
         <div class="profile-menu">
+          <div class="profile-item profile-item-toggle">
+            <span>Dark Mode</span>
+            <label class="switch">
+              <input type="checkbox" id="darkModeToggle">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
           <button class="profile-item">
             <span>My Reviews</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
@@ -397,8 +422,8 @@
       <span>Favorites</span>
     </button>
     <button class="nav-item" data-nav="profile">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
-      <span>Profile</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      <span>Menu</span>
     </button>
   </nav>
 
