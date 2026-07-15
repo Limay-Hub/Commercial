@@ -173,6 +173,7 @@ svg { width: 22px; height: 22px; flex-shrink: 0; }
   margin: 0;
 }
 .welcome-weather {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -180,9 +181,29 @@ svg { width: 22px; height: 22px; flex-shrink: 0; }
   border-radius: var(--radius-full);
   padding: 6px 12px;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .weather-icon { font-size: 16px; line-height: 1; }
 .weather-temp { font-family: var(--font-label); font-size: 13px; font-weight: 600; }
+.weather-location-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #3ba55d;
+  border: 2px solid var(--primary);
+}
+.weather-location-results { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.weather-location-result {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-container-low);
+  font-size: 13px;
+  color: var(--on-background);
+}
 .welcome-datetime {
   font-size: 14px;
   margin: 10px 0 0;

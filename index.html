@@ -106,6 +106,7 @@
             <div class="welcome-weather" id="welcomeWeather">
               <span class="weather-icon" id="weatherIcon">–</span>
               <span class="weather-temp" id="weatherTemp">--°</span>
+              <button class="weather-location-dot" id="btnWeatherLocation" aria-label="Set weather location"></button>
             </div>
           </div>
           <p class="welcome-datetime" id="welcomeDateTime">–</p>
@@ -354,6 +355,33 @@
         <input class="field-input" id="adminLoginPassword" type="password" placeholder="Enter admin password">
         <p class="field-note" id="adminLoginNote"></p>
         <button class="btn-primary" id="btnAdminLoginSubmit">Log In</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Weather location overlay ===== -->
+  <div class="overlay" id="weatherLocationOverlay" hidden>
+    <div class="overlay-sheet">
+      <div class="overlay-header">
+        <h2>Weather Location</h2>
+        <button class="icon-btn" id="btnCloseWeatherLocation" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="overlay-body">
+        <button class="btn-outline" id="btnUseGpsLocation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          Use My Current Location (GPS)
+        </button>
+
+        <label class="field-label">Or search for a place</label>
+        <div style="display:flex; gap:8px;">
+          <input class="field-input" id="weatherLocationSearchInput" type="text" placeholder="e.g. Limay, Bataan">
+          <button class="btn-outline" id="btnWeatherLocationSearch" style="width:auto; padding:0 16px; margin:0;">Search</button>
+        </div>
+        <div id="weatherLocationResults"></div>
+
+        <p class="field-note" id="weatherLocationNote"></p>
       </div>
     </div>
   </div>

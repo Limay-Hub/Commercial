@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.2';
+const APP_VERSION = 'LH_SYS_V.1.3';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -567,17 +567,26 @@ function updateWelcomeDateTime() {
   document.getElementById('welcomeGreeting').textContent = greetingForHour(manilaHour);
 }
 
+function getWeatherLocation() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('limayhub_weather_location') || 'null');
+    if (saved && typeof saved.lat === 'number' && typeof saved.lng === 'number') return saved;
+  } catch (err) { /* fall through to default */ }
+  return { lat: LIMAY_COORDS.lat, lng: LIMAY_COORDS.lng, label: 'Limay, Bataan' };
+}
+
 async function loadWelcomeWeather() {
   const iconEl = document.getElementById('weatherIcon');
   const tempEl = document.getElementById('weatherTemp');
+  const loc = getWeatherLocation();
   try {
     const cached = JSON.parse(localStorage.getItem('limayhub_weather_cache') || 'null');
-    if (cached && Date.now() - cached.at < 30 * 60000) {
+    if (cached && cached.lat === loc.lat && cached.lng === loc.lng && Date.now() - cached.at < 30 * 60000) {
       iconEl.textContent = cached.icon;
       tempEl.textContent = cached.temp;
       return;
     }
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LIMAY_COORDS.lat}&longitude=${LIMAY_COORDS.lng}&current=temperature_2m,weather_code&timezone=Asia%2FManila`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&current=temperature_2m,weather_code&timezone=Asia%2FManila`;
     const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
     const data = await res.json();
     const code = data?.current?.weather_code;
@@ -586,11 +595,81 @@ async function loadWelcomeWeather() {
     const tempText = typeof temp === 'number' ? `${Math.round(temp)}°C` : '--°';
     iconEl.textContent = icon;
     tempEl.textContent = tempText;
-    localStorage.setItem('limayhub_weather_cache', JSON.stringify({ icon, temp: tempText, at: Date.now() }));
+    localStorage.setItem('limayhub_weather_cache', JSON.stringify({ icon, temp: tempText, lat: loc.lat, lng: loc.lng, at: Date.now() }));
   } catch (err) {
     iconEl.textContent = '🌡️';
     tempEl.textContent = '--°';
   }
+}
+
+function saveWeatherLocation(lat, lng, label) {
+  localStorage.setItem('limayhub_weather_location', JSON.stringify({ lat, lng, label }));
+  localStorage.removeItem('limayhub_weather_cache');
+  loadWelcomeWeather();
+}
+
+function initWeatherWidget() {
+  const FB_URL = 'https://www.facebook.com/photo/?fbid=2467303137102259&set=pcb.2467303197102253';
+  const overlay = document.getElementById('weatherLocationOverlay');
+  const note = document.getElementById('weatherLocationNote');
+
+  document.getElementById('welcomeWeather').addEventListener('click', () => {
+    window.open(FB_URL, '_blank', 'noopener');
+  });
+
+  document.getElementById('btnWeatherLocation').addEventListener('click', (e) => {
+    e.stopPropagation();
+    note.textContent = '';
+    document.getElementById('weatherLocationResults').innerHTML = '';
+    document.getElementById('weatherLocationSearchInput').value = '';
+    overlay.hidden = false;
+  });
+
+  document.getElementById('btnCloseWeatherLocation').addEventListener('click', () => { overlay.hidden = true; });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.hidden = true; });
+
+  document.getElementById('btnUseGpsLocation').addEventListener('click', () => {
+    if (!navigator.geolocation) { note.textContent = 'Geolocation is not supported on this device.'; return; }
+    note.textContent = 'Getting your location…';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        saveWeatherLocation(pos.coords.latitude, pos.coords.longitude, 'Current Location');
+        overlay.hidden = true;
+      },
+      () => { note.textContent = 'Could not get your location — check permissions.'; },
+      { timeout: 8000 }
+    );
+  });
+
+  document.getElementById('btnWeatherLocationSearch').addEventListener('click', async () => {
+    const query = document.getElementById('weatherLocationSearchInput').value.trim();
+    const resultsEl = document.getElementById('weatherLocationResults');
+    resultsEl.innerHTML = '';
+    if (!query) { note.textContent = 'Type a place name to search.'; return; }
+    note.textContent = 'Searching…';
+    try {
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=5`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      const data = await res.json();
+      const results = data?.results || [];
+      if (!results.length) { note.textContent = 'No matches found.'; return; }
+      note.textContent = '';
+      resultsEl.className = 'weather-location-results';
+      resultsEl.innerHTML = results.map((r, i) => {
+        const label = [r.name, r.admin1, r.country].filter(Boolean).join(', ');
+        return `<button class="weather-location-result" data-idx="${i}">${label}</button>`;
+      }).join('');
+      resultsEl.querySelectorAll('.weather-location-result').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const r = results[parseInt(btn.dataset.idx, 10)];
+          saveWeatherLocation(r.latitude, r.longitude, r.name);
+          overlay.hidden = true;
+        });
+      });
+    } catch (err) {
+      note.textContent = 'Search failed — check your connection.';
+    }
+  });
 }
 
 let welcomeHeroInitialized = false;
@@ -604,6 +683,7 @@ function renderWelcomeHero() {
   updateWelcomeDateTime();
   setInterval(updateWelcomeDateTime, 30000);
   loadWelcomeWeather();
+  initWeatherWidget();
 
   document.getElementById('btnCopyDigitalId').addEventListener('click', async () => {
     const id = getOrCreateDigitalId();
