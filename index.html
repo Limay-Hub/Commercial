@@ -54,6 +54,58 @@
       <button class="btn-primary" id="btnRegSave">Save</button>
     </div>
 
+    <div class="reg-step" id="regStepIdUpload" hidden>
+      <h2>Upload ID</h2>
+      <p class="reg-sub">For verification purposes only.</p>
+
+      <label class="field-label">ID Type</label>
+      <select class="field-input" id="regIdType">
+        <option value="">Select ID type</option>
+        <option>Passport</option>
+        <option>National ID</option>
+        <option>Driver's License</option>
+        <option>SSS</option>
+        <option>School ID</option>
+        <option>Company ID</option>
+        <option>Senior Citizen ID</option>
+        <option>PRC License</option>
+        <option>Postal ID</option>
+        <option>Voter's ID</option>
+      </select>
+
+      <label class="field-label">Front of ID</label>
+      <div class="id-upload-box">
+        <div class="id-upload-preview">
+          <img id="idFrontPreview" alt="" hidden>
+          <span class="id-upload-placeholder" id="idFrontPlaceholder">No image selected</span>
+        </div>
+        <div class="id-upload-actions">
+          <button type="button" class="btn-outline id-upload-btn" id="btnIdFrontGallery">Upload from Gallery</button>
+          <button type="button" class="btn-outline id-upload-btn" id="btnIdFrontCamera">Take Photo</button>
+        </div>
+      </div>
+      <input type="file" id="idFrontGalleryInput" accept="image/*" hidden>
+      <input type="file" id="idFrontCameraInput" accept="image/*" capture="environment" hidden>
+
+      <label class="field-label">Back of ID</label>
+      <div class="id-upload-box">
+        <div class="id-upload-preview">
+          <img id="idBackPreview" alt="" hidden>
+          <span class="id-upload-placeholder" id="idBackPlaceholder">No image selected</span>
+        </div>
+        <div class="id-upload-actions">
+          <button type="button" class="btn-outline id-upload-btn" id="btnIdBackGallery">Upload from Gallery</button>
+          <button type="button" class="btn-outline id-upload-btn" id="btnIdBackCamera">Take Photo</button>
+        </div>
+      </div>
+      <input type="file" id="idBackGalleryInput" accept="image/*" hidden>
+      <input type="file" id="idBackCameraInput" accept="image/*" capture="environment" hidden>
+
+      <p class="id-upload-privacy-note">🔒 This photo won't be posted anywhere — it's kept on this device only, for record purposes.</p>
+      <p class="field-note" id="regIdUploadNote"></p>
+      <button class="btn-primary" id="btnRegIdUploadNext">Next</button>
+    </div>
+
     <div class="reg-step" id="regStepSelfie" hidden>
       <h2>Take a Selfie</h2>
       <p class="reg-sub" id="regSelfiePrompt">Position your head inside the circle</p>
@@ -322,6 +374,10 @@
               <span class="switch-slider"></span>
             </label>
           </div>
+          <button class="profile-item" id="btnIdentity">
+            <span>Identity</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
           <button class="profile-item">
             <span>My Reviews</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
@@ -421,6 +477,48 @@
   </div>
 
   <!-- ===== Weather location overlay ===== -->
+  <!-- ===== Identity edit overlay ===== -->
+  <div class="overlay" id="identityOverlay" hidden>
+    <div class="overlay-sheet">
+      <div class="overlay-header">
+        <h2>Identity</h2>
+        <button class="icon-btn" id="btnCloseIdentity" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="overlay-body">
+        <label class="field-label">Nickname</label>
+        <input class="field-input" id="idNickname" type="text">
+        <label class="field-label">First Name</label>
+        <input class="field-input" id="idFirstName" type="text">
+        <label class="field-label">Surname</label>
+        <input class="field-input" id="idSurname" type="text">
+        <label class="field-label">House No. / Unit No.</label>
+        <input class="field-input" id="idHouseNo" type="text">
+        <label class="field-label">Barangay</label>
+        <input class="field-input" id="idBarangay" type="text">
+        <label class="field-label">Municipality</label>
+        <input class="field-input" id="idMunicipality" type="text">
+        <label class="field-label">Province</label>
+        <input class="field-input" id="idProvince" type="text">
+        <label class="field-label">Zip Code</label>
+        <input class="field-input" id="idZipCode" type="text" inputmode="numeric">
+        <label class="field-label">Landmark (optional)</label>
+        <input class="field-input" id="idLandmark" type="text">
+        <label class="field-label">Mobile Number</label>
+        <input class="field-input" id="idMobile" type="tel">
+        <label class="field-label">Email</label>
+        <input class="field-input" id="idEmail" type="email">
+        <label class="field-label">Facebook (optional)</label>
+        <input class="field-input" id="idFacebook" type="text">
+        <label class="field-label">Instagram (optional)</label>
+        <input class="field-input" id="idInstagram" type="text">
+        <p class="field-note" id="identityNote"></p>
+        <button class="btn-primary" id="btnIdentitySave">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
   <div class="overlay" id="weatherLocationOverlay" hidden>
     <div class="overlay-sheet">
       <div class="overlay-header">

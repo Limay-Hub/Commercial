@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.4';
+const APP_VERSION = 'LH_SYS_V.1.5';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -400,6 +400,7 @@ function initRegistrationFlow() {
   document.getElementById('regOverlay').hidden = false;
 
   document.getElementById('btnRegSave').addEventListener('click', handleRegFormSave);
+  initIdUploadStep();
   document.getElementById('btnRegContinue').addEventListener('click', finishRegistration);
 }
 
@@ -433,8 +434,49 @@ function handleRegFormSave() {
   localStorage.setItem('limayhub_reg_data', JSON.stringify(regData));
 
   document.getElementById('regStepForm').hidden = true;
-  document.getElementById('regStepSelfie').hidden = false;
-  startSelfieCapture().catch((err) => console.warn('Limay Hub: selfie step failed unexpectedly.', err));
+  document.getElementById('regStepIdUpload').hidden = false;
+}
+
+/* ---- Upload ID step ---- */
+const idUploadData = { front: null, back: null };
+
+function handleIdFileSelected(side, file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    idUploadData[side] = reader.result;
+    document.getElementById(side === 'front' ? 'idFrontPreview' : 'idBackPreview').src = reader.result;
+    document.getElementById(side === 'front' ? 'idFrontPreview' : 'idBackPreview').hidden = false;
+    document.getElementById(side === 'front' ? 'idFrontPlaceholder' : 'idBackPlaceholder').hidden = true;
+  };
+  reader.readAsDataURL(file);
+}
+
+function initIdUploadStep() {
+  document.getElementById('btnIdFrontGallery').addEventListener('click', () => document.getElementById('idFrontGalleryInput').click());
+  document.getElementById('btnIdFrontCamera').addEventListener('click', () => document.getElementById('idFrontCameraInput').click());
+  document.getElementById('btnIdBackGallery').addEventListener('click', () => document.getElementById('idBackGalleryInput').click());
+  document.getElementById('btnIdBackCamera').addEventListener('click', () => document.getElementById('idBackCameraInput').click());
+
+  document.getElementById('idFrontGalleryInput').addEventListener('change', (e) => handleIdFileSelected('front', e.target.files[0]));
+  document.getElementById('idFrontCameraInput').addEventListener('change', (e) => handleIdFileSelected('front', e.target.files[0]));
+  document.getElementById('idBackGalleryInput').addEventListener('change', (e) => handleIdFileSelected('back', e.target.files[0]));
+  document.getElementById('idBackCameraInput').addEventListener('change', (e) => handleIdFileSelected('back', e.target.files[0]));
+
+  document.getElementById('btnRegIdUploadNext').addEventListener('click', () => {
+    const note = document.getElementById('regIdUploadNote');
+    const idType = document.getElementById('regIdType').value;
+    if (!idType) { note.textContent = 'Select an ID type.'; return; }
+    if (!idUploadData.front || !idUploadData.back) { note.textContent = 'Upload both the front and back of your ID.'; return; }
+
+    localStorage.setItem('limayhub_id_type', idType);
+    localStorage.setItem('limayhub_id_front', idUploadData.front);
+    localStorage.setItem('limayhub_id_back', idUploadData.back);
+
+    document.getElementById('regStepIdUpload').hidden = true;
+    document.getElementById('regStepSelfie').hidden = false;
+    startSelfieCapture().catch((err) => console.warn('Limay Hub: selfie step failed unexpectedly.', err));
+  });
 }
 
 async function startSelfieCapture() {
@@ -508,6 +550,57 @@ function finishRegistration() {
   localStorage.setItem('limayhub_registered', '1');
   document.getElementById('regOverlay').hidden = true;
   renderWelcomeHero();
+}
+
+/* ============================================================
+   Identity: view/edit registered details (Menu tab)
+   ============================================================ */
+const IDENTITY_FIELD_MAP = {
+  idNickname: 'nickname', idFirstName: 'firstName', idSurname: 'surname',
+  idHouseNo: 'houseNo', idBarangay: 'barangay', idMunicipality: 'municipality',
+  idProvince: 'province', idZipCode: 'zipCode', idLandmark: 'landmark',
+  idMobile: 'mobile', idEmail: 'email', idFacebook: 'facebook', idInstagram: 'instagram',
+};
+
+function openIdentityOverlay() {
+  const regData = JSON.parse(localStorage.getItem('limayhub_reg_data') || '{}');
+  Object.entries(IDENTITY_FIELD_MAP).forEach(([elId, key]) => {
+    document.getElementById(elId).value = regData[key] || '';
+  });
+  document.getElementById('identityNote').textContent = '';
+  document.getElementById('identityOverlay').hidden = false;
+}
+
+function saveIdentity() {
+  const note = document.getElementById('identityNote');
+  const updated = {};
+  Object.entries(IDENTITY_FIELD_MAP).forEach(([elId, key]) => {
+    updated[key] = document.getElementById(elId).value.trim();
+  });
+
+  if (!updated.nickname || !updated.firstName || !updated.surname || !updated.houseNo ||
+      !updated.barangay || !updated.municipality || !updated.province || !updated.zipCode ||
+      !updated.mobile || !updated.email) {
+    note.textContent = 'Please fill in all required fields.';
+    return;
+  }
+
+  updated.address = [updated.houseNo, updated.barangay, updated.municipality, updated.province, updated.zipCode].join(', ') +
+    (updated.landmark ? ` (near ${updated.landmark})` : '');
+
+  localStorage.setItem('limayhub_reg_data', JSON.stringify(updated));
+  setDisplayName(updated.nickname);
+  renderWelcomeHero();
+  document.getElementById('identityOverlay').hidden = true;
+}
+
+function initIdentityWidget() {
+  document.getElementById('btnIdentity').addEventListener('click', openIdentityOverlay);
+  document.getElementById('btnCloseIdentity').addEventListener('click', () => { document.getElementById('identityOverlay').hidden = true; });
+  document.getElementById('identityOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'identityOverlay') document.getElementById('identityOverlay').hidden = true;
+  });
+  document.getElementById('btnIdentitySave').addEventListener('click', saveIdentity);
 }
 
 /* ============================================================
@@ -2075,6 +2168,7 @@ async function init() {
   document.getElementById('appVersionLabel').textContent = `Version ${APP_VERSION}`;
   document.getElementById('btnCheckUpdate').addEventListener('click', checkForUpdate);
   initThemeToggle();
+  initIdentityWidget();
 
   switchView('home');
 }
