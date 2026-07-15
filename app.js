@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.0';
+const APP_VERSION = 'LH_SYS_V.1.1';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
