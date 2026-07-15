@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.1';
+const APP_VERSION = 'LH_SYS_V.1.2';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -379,6 +379,138 @@ function getOrCreateDigitalId() {
 }
 
 /* ============================================================
+   First-run registration: User Identification + guided selfie
+   ============================================================ */
+const SELFIE_STEPS = [
+  'Center your face in the circle',
+  'Turn your head to the left',
+  'Turn your head to the right',
+  'Look straight at the camera',
+  'Now blink your eyes',
+];
+const SELFIE_STEP_MS = 2200;
+let selfieStream = null;
+
+function isRegistered() {
+  return localStorage.getItem('limayhub_registered') === '1';
+}
+
+function initRegistrationFlow() {
+  if (isRegistered()) return;
+  document.getElementById('regOverlay').hidden = false;
+
+  document.getElementById('btnRegSave').addEventListener('click', handleRegFormSave);
+  document.getElementById('btnRegContinue').addEventListener('click', finishRegistration);
+}
+
+function handleRegFormSave() {
+  const note = document.getElementById('regFormNote');
+  const nickname = document.getElementById('regNickname').value.trim();
+  const firstName = document.getElementById('regFirstName').value.trim();
+  const surname = document.getElementById('regSurname').value.trim();
+  const houseNo = document.getElementById('regHouseNo').value.trim();
+  const barangay = document.getElementById('regBarangay').value.trim();
+  const municipality = document.getElementById('regMunicipality').value.trim();
+  const province = document.getElementById('regProvince').value.trim();
+  const zipCode = document.getElementById('regZipCode').value.trim();
+  const mobile = document.getElementById('regMobile').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+
+  if (!nickname || !firstName || !surname || !houseNo || !barangay || !municipality || !province || !zipCode || !mobile || !email) {
+    note.textContent = 'Please fill in all required fields.';
+    return;
+  }
+
+  const landmark = document.getElementById('regLandmark').value.trim();
+  const address = [houseNo, barangay, municipality, province, zipCode].join(', ') + (landmark ? ` (near ${landmark})` : '');
+
+  const regData = {
+    nickname, firstName, surname, mobile, email,
+    houseNo, barangay, municipality, province, zipCode, landmark, address,
+    facebook: document.getElementById('regFacebook').value.trim(),
+    instagram: document.getElementById('regInstagram').value.trim(),
+  };
+  localStorage.setItem('limayhub_reg_data', JSON.stringify(regData));
+
+  document.getElementById('regStepForm').hidden = true;
+  document.getElementById('regStepSelfie').hidden = false;
+  startSelfieCapture().catch((err) => console.warn('Limay Hub: selfie step failed unexpectedly.', err));
+}
+
+async function startSelfieCapture() {
+  const note = document.getElementById('regSelfieNote');
+  const progressEl = document.getElementById('selfieProgress');
+  progressEl.innerHTML = SELFIE_STEPS.map(() => '<span class="selfie-progress-dot"></span>').join('');
+  const dots = progressEl.querySelectorAll('.selfie-progress-dot');
+
+  try {
+    selfieStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    document.getElementById('selfieVideo').srcObject = selfieStream;
+    note.textContent = '';
+  } catch (err) {
+    note.textContent = "Couldn't access your camera. Check permissions and try again.";
+    note.style.color = 'var(--error)';
+    return;
+  }
+
+  for (let i = 0; i < SELFIE_STEPS.length; i++) {
+    document.getElementById('regSelfiePrompt').textContent = SELFIE_STEPS[i];
+    dots.forEach((d, idx) => d.classList.toggle('is-active', idx === i));
+    await new Promise((resolve) => setTimeout(resolve, SELFIE_STEP_MS));
+    dots[i].classList.remove('is-active');
+    dots[i].classList.add('is-done');
+  }
+
+  captureSelfieFrame();
+}
+
+function captureSelfieFrame() {
+  const video = document.getElementById('selfieVideo');
+
+  try {
+    const canvas = document.getElementById('selfieCanvas');
+    const size = 320;
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Mirror horizontally to match the preview (video is CSS-flipped for a
+    // natural "looking in a mirror" feel while capturing).
+    ctx.translate(size, 0);
+    ctx.scale(-1, 1);
+
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const cropSize = Math.min(vw, vh) || 1;
+    ctx.drawImage(video, (vw - cropSize) / 2, (vh - cropSize) / 2, cropSize, cropSize, 0, 0, size, size);
+
+    const selfieDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    localStorage.setItem('limayhub_selfie', selfieDataUrl);
+  } catch (err) {
+    // Canvas/video edge case (e.g. zero-dimension frame) — still finish
+    // registration below rather than leaving the user stuck on this step.
+    console.warn('Limay Hub: selfie capture failed, continuing without a saved photo.', err);
+  }
+
+  if (selfieStream) {
+    selfieStream.getTracks().forEach((t) => t.stop());
+    selfieStream = null;
+  }
+
+  const regData = JSON.parse(localStorage.getItem('limayhub_reg_data') || '{}');
+  document.getElementById('regSuccessName').textContent = regData.nickname || '';
+  document.getElementById('regStepSelfie').hidden = true;
+  document.getElementById('regStepSuccess').hidden = false;
+}
+
+function finishRegistration() {
+  const regData = JSON.parse(localStorage.getItem('limayhub_reg_data') || '{}');
+  if (regData.nickname) setDisplayName(regData.nickname);
+  localStorage.setItem('limayhub_registered', '1');
+  document.getElementById('regOverlay').hidden = true;
+  renderWelcomeHero();
+}
+
+/* ============================================================
    Rendering helpers
    ============================================================ */
 function svgIcon(pathData) {
@@ -461,9 +593,14 @@ async function loadWelcomeWeather() {
   }
 }
 
+let welcomeHeroInitialized = false;
 function renderWelcomeHero() {
   document.getElementById('welcomeName').textContent = getDisplayName();
   document.getElementById('welcomeDigitalId').textContent = getOrCreateDigitalId();
+
+  if (welcomeHeroInitialized) return;
+  welcomeHeroInitialized = true;
+
   updateWelcomeDateTime();
   setInterval(updateWelcomeDateTime, 30000);
   loadWelcomeWeather();
@@ -1299,6 +1436,7 @@ function initAdminSystem() {
 async function init() {
   await loadDataFromSupabase();
 
+  initRegistrationFlow();
   renderWelcomeHero();
   renderCategories();
   renderGemBanner();

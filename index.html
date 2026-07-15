@@ -15,6 +15,70 @@
 </head>
 <body>
 
+<!-- ===== First-run registration ===== -->
+<div class="reg-overlay" id="regOverlay" hidden>
+  <div class="reg-sheet">
+
+    <div class="reg-step" id="regStepForm">
+      <h2>User Identification</h2>
+      <p class="reg-sub">Please complete your profile to continue.</p>
+
+      <label class="field-label">Nickname</label>
+      <input class="field-input" id="regNickname" type="text" placeholder="What should we call you?">
+      <label class="field-label">First Name</label>
+      <input class="field-input" id="regFirstName" type="text">
+      <label class="field-label">Surname</label>
+      <input class="field-input" id="regSurname" type="text">
+      <label class="field-label">House No. / Unit No.</label>
+      <input class="field-input" id="regHouseNo" type="text">
+      <label class="field-label">Barangay</label>
+      <input class="field-input" id="regBarangay" type="text">
+      <label class="field-label">Municipality</label>
+      <input class="field-input" id="regMunicipality" type="text" value="Limay">
+      <label class="field-label">Province</label>
+      <input class="field-input" id="regProvince" type="text" value="Bataan">
+      <label class="field-label">Zip Code</label>
+      <input class="field-input" id="regZipCode" type="text" inputmode="numeric">
+      <label class="field-label">Landmark (optional)</label>
+      <input class="field-input" id="regLandmark" type="text">
+      <label class="field-label">Mobile Number</label>
+      <input class="field-input" id="regMobile" type="tel">
+      <label class="field-label">Email</label>
+      <input class="field-input" id="regEmail" type="email">
+      <label class="field-label">Facebook (optional)</label>
+      <input class="field-input" id="regFacebook" type="text">
+      <label class="field-label">Instagram (optional)</label>
+      <input class="field-input" id="regInstagram" type="text">
+
+      <p class="field-note" id="regFormNote"></p>
+      <button class="btn-primary" id="btnRegSave">Save</button>
+    </div>
+
+    <div class="reg-step" id="regStepSelfie" hidden>
+      <h2>Take a Selfie</h2>
+      <p class="reg-sub" id="regSelfiePrompt">Position your head inside the circle</p>
+
+      <div class="selfie-camera-wrap">
+        <video id="selfieVideo" autoplay playsinline muted></video>
+      </div>
+
+      <div class="selfie-progress" id="selfieProgress"></div>
+      <p class="field-note" id="regSelfieNote"></p>
+    </div>
+
+    <div class="reg-step reg-step-success" id="regStepSuccess" hidden>
+      <div class="reg-success-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <h2>Registration Successful!</h2>
+      <p class="reg-sub">Welcome to Limay Hub, <span id="regSuccessName"></span>.</p>
+      <button class="btn-primary" id="btnRegContinue">Continue</button>
+    </div>
+
+  </div>
+</div>
+<canvas id="selfieCanvas" hidden></canvas>
+
 <div id="app">
 
   <!-- ===== Shared top bar (Home / Search tabs) ===== -->
