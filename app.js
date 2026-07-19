@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.6';
+const APP_VERSION = 'LH_SYS_V.1.7';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -400,7 +400,6 @@ function initRegistrationFlow() {
   document.getElementById('regOverlay').hidden = false;
 
   document.getElementById('btnRegSave').addEventListener('click', handleRegFormSave);
-  initIdUploadStep();
   document.getElementById('btnRegContinue').addEventListener('click', finishRegistration);
 }
 
@@ -434,49 +433,8 @@ function handleRegFormSave() {
   localStorage.setItem('limayhub_reg_data', JSON.stringify(regData));
 
   document.getElementById('regStepForm').hidden = true;
-  document.getElementById('regStepIdUpload').hidden = false;
-}
-
-/* ---- Upload ID step ---- */
-const idUploadData = { front: null, back: null };
-
-function handleIdFileSelected(side, file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    idUploadData[side] = reader.result;
-    document.getElementById(side === 'front' ? 'idFrontPreview' : 'idBackPreview').src = reader.result;
-    document.getElementById(side === 'front' ? 'idFrontPreview' : 'idBackPreview').hidden = false;
-    document.getElementById(side === 'front' ? 'idFrontPlaceholder' : 'idBackPlaceholder').hidden = true;
-  };
-  reader.readAsDataURL(file);
-}
-
-function initIdUploadStep() {
-  document.getElementById('btnIdFrontGallery').addEventListener('click', () => document.getElementById('idFrontGalleryInput').click());
-  document.getElementById('btnIdFrontCamera').addEventListener('click', () => document.getElementById('idFrontCameraInput').click());
-  document.getElementById('btnIdBackGallery').addEventListener('click', () => document.getElementById('idBackGalleryInput').click());
-  document.getElementById('btnIdBackCamera').addEventListener('click', () => document.getElementById('idBackCameraInput').click());
-
-  document.getElementById('idFrontGalleryInput').addEventListener('change', (e) => handleIdFileSelected('front', e.target.files[0]));
-  document.getElementById('idFrontCameraInput').addEventListener('change', (e) => handleIdFileSelected('front', e.target.files[0]));
-  document.getElementById('idBackGalleryInput').addEventListener('change', (e) => handleIdFileSelected('back', e.target.files[0]));
-  document.getElementById('idBackCameraInput').addEventListener('change', (e) => handleIdFileSelected('back', e.target.files[0]));
-
-  document.getElementById('btnRegIdUploadNext').addEventListener('click', () => {
-    const note = document.getElementById('regIdUploadNote');
-    const idType = document.getElementById('regIdType').value;
-    if (!idType) { note.textContent = 'Select an ID type.'; return; }
-    if (!idUploadData.front || !idUploadData.back) { note.textContent = 'Upload both the front and back of your ID.'; return; }
-
-    localStorage.setItem('limayhub_id_type', idType);
-    localStorage.setItem('limayhub_id_front', idUploadData.front);
-    localStorage.setItem('limayhub_id_back', idUploadData.back);
-
-    document.getElementById('regStepIdUpload').hidden = true;
-    document.getElementById('regStepSelfie').hidden = false;
-    startSelfieCapture().catch((err) => console.warn('Limay Hub: selfie step failed unexpectedly.', err));
-  });
+  document.getElementById('regStepSelfie').hidden = false;
+  startSelfieCapture().catch((err) => console.warn('Limay Hub: selfie step failed unexpectedly.', err));
 }
 
 async function startSelfieCapture() {

@@ -1238,43 +1238,6 @@ svg { width: 22px; height: 22px; flex-shrink: 0; }
 .selfie-progress-dot.is-done { background: var(--primary); }
 .selfie-progress-dot.is-active { background: var(--primary); transform: scale(1.3); }
 
-.id-upload-box {
-  background: var(--surface-container-low);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  margin-bottom: 4px;
-}
-.id-upload-preview {
-  height: 120px;
-  border-radius: var(--radius);
-  background: var(--surface-container-lowest);
-  border: 1.5px dashed var(--outline-variant);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.id-upload-preview img { width: 100%; height: 100%; object-fit: cover; }
-.id-upload-placeholder {
-  font-family: var(--font-label);
-  font-size: 12px;
-  color: var(--outline);
-}
-.id-upload-actions { display: flex; gap: 8px; }
-.id-upload-btn { flex: 1; width: auto; margin: 0; padding: 10px 6px; font-size: 12px; }
-.id-upload-privacy-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--on-surface-variant);
-  background: var(--secondary-container);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  margin: 12px 0 0;
-}
-
 .reg-step-success { text-align: center; }
 .reg-success-icon {
   width: 64px; height: 64px;

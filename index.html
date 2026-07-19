@@ -54,58 +54,6 @@
       <button class="btn-primary" id="btnRegSave">Save</button>
     </div>
 
-    <div class="reg-step" id="regStepIdUpload" hidden>
-      <h2>Upload ID</h2>
-      <p class="reg-sub">For verification purposes only.</p>
-
-      <label class="field-label">ID Type</label>
-      <select class="field-input" id="regIdType">
-        <option value="">Select ID type</option>
-        <option>Passport</option>
-        <option>National ID</option>
-        <option>Driver's License</option>
-        <option>SSS</option>
-        <option>School ID</option>
-        <option>Company ID</option>
-        <option>Senior Citizen ID</option>
-        <option>PRC License</option>
-        <option>Postal ID</option>
-        <option>Voter's ID</option>
-      </select>
-
-      <label class="field-label">Front of ID</label>
-      <div class="id-upload-box">
-        <div class="id-upload-preview">
-          <img id="idFrontPreview" alt="" hidden>
-          <span class="id-upload-placeholder" id="idFrontPlaceholder">No image selected</span>
-        </div>
-        <div class="id-upload-actions">
-          <button type="button" class="btn-outline id-upload-btn" id="btnIdFrontGallery">Upload from Gallery</button>
-          <button type="button" class="btn-outline id-upload-btn" id="btnIdFrontCamera">Take Photo</button>
-        </div>
-      </div>
-      <input type="file" id="idFrontGalleryInput" accept="image/*" hidden>
-      <input type="file" id="idFrontCameraInput" accept="image/*" capture="environment" hidden>
-
-      <label class="field-label">Back of ID</label>
-      <div class="id-upload-box">
-        <div class="id-upload-preview">
-          <img id="idBackPreview" alt="" hidden>
-          <span class="id-upload-placeholder" id="idBackPlaceholder">No image selected</span>
-        </div>
-        <div class="id-upload-actions">
-          <button type="button" class="btn-outline id-upload-btn" id="btnIdBackGallery">Upload from Gallery</button>
-          <button type="button" class="btn-outline id-upload-btn" id="btnIdBackCamera">Take Photo</button>
-        </div>
-      </div>
-      <input type="file" id="idBackGalleryInput" accept="image/*" hidden>
-      <input type="file" id="idBackCameraInput" accept="image/*" capture="environment" hidden>
-
-      <p class="id-upload-privacy-note">🔒 This photo won't be posted anywhere — it's kept on this device only, for record purposes.</p>
-      <p class="field-note" id="regIdUploadNote"></p>
-      <button class="btn-primary" id="btnRegIdUploadNext">Next</button>
-    </div>
-
     <div class="reg-step" id="regStepSelfie" hidden>
       <h2>Take a Selfie</h2>
       <p class="reg-sub" id="regSelfiePrompt">Position your head inside the circle</p>
