@@ -1,6 +1,6 @@
 {
-  "name": "Limay Hub",
-  "short_name": "Limay Hub",
+  "name": "Limay Nexus",
+  "short_name": "Limay Nexus",
   "description": "Find your local favorites — stores and services around Limay.",
   "start_url": "./index.html",
   "scope": "./",

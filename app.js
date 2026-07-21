@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LH_SYS_V.1.7';
+const APP_VERSION = 'LN_SYS_V.1.8';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -316,7 +316,7 @@ async function loadDataFromSupabase() {
       }));
     }
   } catch (err) {
-    console.warn('Limay Hub: Supabase fetch failed, using bundled seed data.', err);
+    console.warn('Limay Nexus: Supabase fetch failed, using bundled seed data.', err);
   }
 }
 
@@ -434,7 +434,7 @@ function handleRegFormSave() {
 
   document.getElementById('regStepForm').hidden = true;
   document.getElementById('regStepSelfie').hidden = false;
-  startSelfieCapture().catch((err) => console.warn('Limay Hub: selfie step failed unexpectedly.', err));
+  startSelfieCapture().catch((err) => console.warn('Limay Nexus: selfie step failed unexpectedly.', err));
 }
 
 async function startSelfieCapture() {
@@ -488,7 +488,7 @@ function captureSelfieFrame() {
   } catch (err) {
     // Canvas/video edge case (e.g. zero-dimension frame) — still finish
     // registration below rather than leaving the user stuck on this step.
-    console.warn('Limay Hub: selfie capture failed, continuing without a saved photo.', err);
+    console.warn('Limay Nexus: selfie capture failed, continuing without a saved photo.', err);
   }
 
   if (selfieStream) {
@@ -964,7 +964,7 @@ async function loadRoomMessages(roomId) {
     chatMessages = (data || []).map((row) => mapMessageRow(row, myKey));
     renderChatMessages();
   } catch (err) {
-    console.warn('Limay Hub: room message load failed.', err);
+    console.warn('Limay Nexus: room message load failed.', err);
     chatMessages = roomId === null ? DEMO_CHAT_MESSAGES.slice() : [];
     renderChatMessages();
   }
@@ -1390,7 +1390,7 @@ async function sendChatMessage() {
       // The realtime INSERT subscription above will append it to the thread.
       return;
     } catch (err) {
-      console.warn('Limay Hub: send failed, showing locally only.', err);
+      console.warn('Limay Nexus: send failed, showing locally only.', err);
     }
   }
 

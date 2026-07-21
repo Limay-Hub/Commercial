@@ -1,4 +1,4 @@
-const CACHE_NAME = 'limayhub-v8';
+const CACHE_NAME = 'limaynexus-v9';
 
 const CORE_ASSETS = [
   './',
