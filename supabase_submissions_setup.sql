@@ -16,6 +16,7 @@ create extension if not exists pgcrypto;
 create table if not exists store_submissions (
   id uuid primary key default gen_random_uuid(),
   business_name text not null,
+  category_id text references categories(id) on delete set null,
   address text not null,
   landmark text,
   contact_number text not null,
@@ -27,6 +28,7 @@ create table if not exists store_submissions (
   photo_url text not null,                 -- storefront/building/signage photo, base64 data URL or plain image URL
   lat numeric,                             -- optional GPS pin
   lng numeric,
+  submitter_share_key uuid,                -- submitter's local chat identity, so we can notify them on approval
   created_at timestamptz not null default now()
 );
 
@@ -38,3 +40,30 @@ create policy "anyone can submit an establishment"
   with check (true);
 
 -- Intentionally no select policy — submissions are private until reviewed.
+
+-- ---------------------------------------------------------------------
+-- submission_notifications — "your establishment was approved!" alerts,
+-- surfaced via the topbar bell to whichever device holds the matching
+-- share_key. Only admin_approve_submission (security definer) writes to
+-- this table; the client only ever reads/deletes its own rows.
+-- ---------------------------------------------------------------------
+create table if not exists submission_notifications (
+  id uuid primary key default gen_random_uuid(),
+  share_key uuid not null,
+  business_name text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table submission_notifications enable row level security;
+
+create policy "submission notifications are publicly readable"
+  on submission_notifications for select
+  to anon, authenticated
+  using (true);
+
+create policy "anyone can dismiss a submission notification"
+  on submission_notifications for delete
+  to anon, authenticated
+  using (true);
+
+create index if not exists submission_notifications_share_key_idx on submission_notifications (share_key);

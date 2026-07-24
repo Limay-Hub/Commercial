@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.13';
+const APP_VERSION = 'LN_SYS_V.1.14';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -229,6 +229,13 @@ const FULFILLMENT_ICONS = {
   'Store Pickup': ICONS.bag,
   'Curbside': ICONS.truck,
   'Local Delivery': ICONS.truck,
+  // Add Establishment "Services Offered" labels — same set once a
+  // submission is approved into a live store's fulfillment_methods.
+  'Delivery': ICONS.truck,
+  'Pick up': ICONS.bag,
+  'Dine in': ICONS.fork,
+  'On-site Services': ICONS.wrench,
+  'Home Services': ICONS.gear,
 };
 
 /* ============================================================
@@ -698,6 +705,7 @@ let aeGpsCoords = null;
 function openAddEstablishment() {
   ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail', 'aeFacebook', 'aeInstagram', 'aeLogoUrl', 'aePhotoUrl']
     .forEach((id) => { document.getElementById(id).value = ''; });
+  document.getElementById('aeCategory').selectedIndex = 0;
   document.querySelectorAll('.aeService').forEach((cb) => { cb.checked = false; });
   ['aeLogoFile', 'aeLogoCamera', 'aePhotoFile', 'aePhotoCamera'].forEach((id) => { document.getElementById(id).value = ''; });
   ['aeLogoPreview', 'aePhotoPreview'].forEach((id) => {
@@ -721,6 +729,7 @@ function closeAddEstablishment() {
 async function submitEstablishment() {
   const note = document.getElementById('addEstablishmentNote');
   const name = document.getElementById('aeName').value.trim();
+  const categoryId = document.getElementById('aeCategory').value;
   const address = document.getElementById('aeAddress').value.trim();
   const landmark = document.getElementById('aeLandmark').value.trim();
   const contactNumber = document.getElementById('aeContact').value.trim();
@@ -731,9 +740,9 @@ async function submitEstablishment() {
   const logoPreview = document.getElementById('aeLogoPreview');
   const photoPreview = document.getElementById('aePhotoPreview');
 
-  if (!name || !address || !contactNumber) {
+  if (!name || !categoryId || !address || !contactNumber) {
     note.style.color = 'var(--error)';
-    note.textContent = 'Please fill in business name, address, and contact number.';
+    note.textContent = 'Please fill in business name, category, address, and contact number.';
     return;
   }
   if (photoPreview.hidden) {
@@ -743,7 +752,7 @@ async function submitEstablishment() {
   }
 
   const submission = {
-    name, address, landmark, contactNumber, email, facebook, instagram, services,
+    name, categoryId, address, landmark, contactNumber, email, facebook, instagram, services,
     logo: logoPreview.hidden ? '' : logoPreview.src,
     photo: photoPreview.src,
     lat: aeGpsCoords ? aeGpsCoords.lat : null,
@@ -758,6 +767,7 @@ async function submitEstablishment() {
     if (!supabaseClient) throw new Error('offline');
     const { error } = await supabaseClient.from('store_submissions').insert({
       business_name: submission.name,
+      category_id: submission.categoryId,
       address: submission.address,
       landmark: submission.landmark,
       contact_number: submission.contactNumber,
@@ -769,6 +779,7 @@ async function submitEstablishment() {
       photo_url: submission.photo,
       lat: submission.lat,
       lng: submission.lng,
+      submitter_share_key: getShareKey(),
     });
     if (error) throw error;
   } catch (err) {
@@ -785,6 +796,7 @@ async function submitEstablishment() {
 }
 
 function initAddEstablishment() {
+  populateCategorySelect('aeCategory');
   document.getElementById('fabAdd').addEventListener('click', openAddEstablishment);
   document.getElementById('btnAddEstablishmentMenu').addEventListener('click', openAddEstablishment);
   document.getElementById('btnCloseAddEstablishment').addEventListener('click', closeAddEstablishment);
@@ -1601,6 +1613,59 @@ function renderNotifPopover() {
   });
 }
 
+/* ---- Notifications: topbar bell — establishment approval alerts ---- */
+let approvalNotifications = [];
+
+async function refreshApprovalNotifications() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('submission_notifications')
+      .select('id, business_name, created_at')
+      .eq('share_key', getShareKey())
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    approvalNotifications = data || [];
+  } catch (err) { /* best effort */ }
+  document.getElementById('topbarNotifDot').hidden = approvalNotifications.length === 0;
+}
+
+function renderTopbarNotifPopover() {
+  const list = document.getElementById('topbarNotifList');
+  list.innerHTML = approvalNotifications.map((n) => `
+    <div class="chat-notif-item">
+      <div class="chat-notif-item-text">🎉 <span class="chat-notif-item-name">${escapeHtml(n.business_name)}</span> was approved and is now live!</div>
+      <div class="chat-notif-item-actions">
+        <button class="chat-notif-accept" data-ack-approval="${n.id}">OK</button>
+      </div>
+    </div>
+  `).join('') || '<p class="chat-notif-empty">No notifications.</p>';
+
+  list.querySelectorAll('[data-ack-approval]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.ackApproval;
+      try { await supabaseClient.from('submission_notifications').delete().eq('id', id); } catch (err) { /* best effort */ }
+      approvalNotifications = approvalNotifications.filter((n) => n.id !== id);
+      renderTopbarNotifPopover();
+      document.getElementById('topbarNotifDot').hidden = approvalNotifications.length === 0;
+    });
+  });
+}
+
+function initTopbarNotifications() {
+  document.getElementById('notifBtn').addEventListener('click', () => {
+    const popover = document.getElementById('topbarNotifPopover');
+    const wasHidden = popover.hidden;
+    popover.hidden = !wasHidden;
+    if (wasHidden) renderTopbarNotifPopover();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.topbar-notif-wrap')) {
+      document.getElementById('topbarNotifPopover').hidden = true;
+    }
+  });
+}
+
 function clearPendingImage() {
   pendingImageDataUrl = null;
   document.getElementById('chatPendingImage').hidden = true;
@@ -2136,9 +2201,13 @@ function addServiceRow(data) {
   document.getElementById('asServicesList').appendChild(row);
 }
 
+function populateCategorySelect(selectId) {
+  document.getElementById(selectId).innerHTML = CATEGORIES.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
 function openStoreForm(store) {
+  populateCategorySelect('asCategory');
   const categorySelect = document.getElementById('asCategory');
-  categorySelect.innerHTML = CATEGORIES.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
   document.getElementById('asStoreId').value = store?.id || '';
   document.getElementById('asName').value = store?.name || '';
@@ -2358,12 +2427,16 @@ async function renderAdminSubmissionsList() {
         <span class="admin-store-item-meta">${escapeHtml(s.address || '—')} · ${timeLabel(s.created_at)}</span>
       </div>
       <div class="admin-store-item-actions">
+        <button class="admin-icon-btn-sm" data-approve-sub="${s.id}" title="Approve &amp; publish as a store">✅</button>
         <button class="admin-icon-btn-sm" data-edit-sub="${s.id}">✏️</button>
         <button class="admin-icon-btn-sm" data-delete-sub="${s.id}">🗑️</button>
       </div>
     </div>
   `).join('');
 
+  list.querySelectorAll('[data-approve-sub]').forEach((btn) => {
+    btn.addEventListener('click', () => approveSubmission(btn.dataset.approveSub));
+  });
   list.querySelectorAll('[data-edit-sub]').forEach((btn) => {
     btn.addEventListener('click', () => openSubmissionForm(adminSubmissions.find((s) => s.id === btn.dataset.editSub)));
   });
@@ -2372,9 +2445,24 @@ async function renderAdminSubmissionsList() {
   });
 }
 
+async function approveSubmission(id) {
+  const submission = adminSubmissions.find((s) => s.id === id);
+  if (!submission) return;
+  if (!confirm(`Approve "${submission.business_name}" and publish it as a live store?`)) return;
+  try {
+    await adminRpc('admin_approve_submission', { p_id: id });
+    await loadDataFromSupabase();
+    renderCategories(); renderStoreList(); renderFavorites(); renderLeaderboardGroups(); renderGemBanner();
+    renderAdminSubmissionsList();
+  } catch (err) {
+    alert('Approve failed: ' + (err.message || 'unknown error'));
+  }
+}
+
 function openSubmissionForm(submission) {
   document.getElementById('asubId').value = submission.id;
   document.getElementById('asubName').value = submission.business_name || '';
+  document.getElementById('asubCategory').value = submission.category_id || '';
   document.getElementById('asubAddress').value = submission.address || '';
   document.getElementById('asubLandmark').value = submission.landmark || '';
   document.getElementById('asubContact').value = submission.contact_number || '';
@@ -2422,6 +2510,7 @@ async function saveSubmission() {
     await adminRpc('admin_update_submission', {
       p_id: id,
       p_business_name: name,
+      p_category_id: document.getElementById('asubCategory').value || null,
       p_address: address,
       p_landmark: document.getElementById('asubLandmark').value.trim(),
       p_contact_number: document.getElementById('asubContact').value.trim(),
@@ -2454,6 +2543,7 @@ async function deleteSubmission(id) {
 /* ---- Init / wiring ---- */
 function initAdminSystem() {
   refreshAdminUI();
+  populateCategorySelect('asubCategory');
 
   document.getElementById('btnAdminLoginMenuItem').addEventListener('click', () => {
     if (isAdminLoggedIn()) {
@@ -2556,6 +2646,8 @@ async function init() {
   await syncChatIdentity();
   await switchChatView('public');
   await refreshChatNotifications();
+  initTopbarNotifications();
+  await refreshApprovalNotifications();
   await loadAnnouncement();
   initAdminSystem();
 

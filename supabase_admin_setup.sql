@@ -253,10 +253,16 @@ $$;
 
 grant execute on function admin_list_submissions(text) to anon;
 
+-- Signature grew a p_category_id param since first written — drop the old
+-- 14-arg version first so `create or replace` doesn't just add a second
+-- overload alongside it.
+drop function if exists admin_update_submission(text, uuid, text, text, text, text, text, text, text, text[], text, text, numeric, numeric);
+
 create or replace function admin_update_submission(
   p_password text,
   p_id uuid,
   p_business_name text,
+  p_category_id text,
   p_address text,
   p_landmark text,
   p_contact_number text,
@@ -279,6 +285,7 @@ begin
 
   update store_submissions set
     business_name = p_business_name,
+    category_id = p_category_id,
     address = p_address,
     landmark = p_landmark,
     contact_number = p_contact_number,
@@ -294,7 +301,7 @@ begin
 end;
 $$;
 
-grant execute on function admin_update_submission(text, uuid, text, text, text, text, text, text, text, text[], text, text, numeric, numeric) to anon;
+grant execute on function admin_update_submission(text, uuid, text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric) to anon;
 
 create or replace function admin_delete_submission(p_password text, p_id uuid) returns void
 language plpgsql
@@ -309,3 +316,53 @@ end;
 $$;
 
 grant execute on function admin_delete_submission(text, uuid) to anon;
+
+-- Approves a submission: publishes it into `stores` (auto-slug from the
+-- business name + the submission id for guaranteed uniqueness), notifies
+-- the submitter's device via submission_notifications if they had one
+-- (client-generated share_key, same as chat identity), then removes the
+-- submission from the review queue.
+create or replace function admin_approve_submission(p_password text, p_id uuid) returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_sub store_submissions%rowtype;
+  v_slug text;
+  v_store_id uuid;
+begin
+  if not verify_admin_login(p_password) then
+    raise exception 'Not authorized';
+  end if;
+
+  select * into v_sub from store_submissions where id = p_id;
+  if not found then
+    raise exception 'Submission not found';
+  end if;
+
+  v_slug := trim(both '-' from lower(regexp_replace(trim(v_sub.business_name), '[^a-zA-Z0-9]+', '-', 'g')))
+    || '-' || substr(v_sub.id::text, 1, 8);
+
+  insert into stores (
+    slug, category_id, name, cuisine, rating, description, status, status_label,
+    image_url, address, fulfillment_methods, sort_order
+  ) values (
+    v_slug, v_sub.category_id, v_sub.business_name, '', 0, '', 'open', 'Open Now',
+    coalesce(nullif(v_sub.photo_url, ''), nullif(v_sub.logo_url, '')),
+    v_sub.address || case when coalesce(v_sub.landmark, '') <> '' then ' (near ' || v_sub.landmark || ')' else '' end,
+    coalesce(v_sub.services, '{}'), 999
+  )
+  returning id into v_store_id;
+
+  if v_sub.submitter_share_key is not null then
+    insert into submission_notifications (share_key, business_name)
+    values (v_sub.submitter_share_key, v_sub.business_name);
+  end if;
+
+  delete from store_submissions where id = p_id;
+
+  return v_store_id;
+end;
+$$;
+
+grant execute on function admin_approve_submission(text, uuid) to anon;
