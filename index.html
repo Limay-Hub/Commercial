@@ -510,6 +510,10 @@
         <input class="field-input" id="aeContact" type="tel" placeholder="09XX XXX XXXX">
         <label class="field-label">Email (optional)</label>
         <input class="field-input" id="aeEmail" type="email">
+        <label class="field-label">Facebook Page (optional)</label>
+        <input class="field-input" id="aeFacebook" type="text" placeholder="facebook.com/yourpage">
+        <label class="field-label">Instagram Page (optional)</label>
+        <input class="field-input" id="aeInstagram" type="text" placeholder="instagram.com/yourpage">
 
         <label class="field-label">Services Offered</label>
         <div class="checkbox-row">
@@ -526,6 +530,7 @@
           <label class="btn-outline photo-upload-btn" for="aeLogoFile">Choose Logo</label>
           <input type="file" accept="image/*" id="aeLogoFile" hidden>
         </div>
+        <input class="field-input photo-url-input" id="aeLogoUrl" type="url" placeholder="…or paste an image URL instead">
 
         <label class="field-label">Photo of Storefront / Building / Signage</label>
         <div class="photo-upload-row">
@@ -533,6 +538,7 @@
           <label class="btn-outline photo-upload-btn" for="aePhotoFile">Choose Photo</label>
           <input type="file" accept="image/*" id="aePhotoFile" hidden>
         </div>
+        <input class="field-input photo-url-input" id="aePhotoUrl" type="url" placeholder="…or paste an image URL instead">
 
         <p class="field-note" id="addEstablishmentNote"></p>
         <button class="btn-primary" id="btnAeSubmit">Submit for Review</button>

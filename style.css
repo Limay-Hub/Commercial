@@ -1403,6 +1403,7 @@ textarea.field-input { resize: vertical; font-family: inherit; }
   font-size: 13px;
   cursor: pointer;
 }
+.photo-url-input { margin-top: 8px; font-size: 13px; }
 
 /* ===== Admin drawer: edge tab ===== */
 .admin-drawer-tab {

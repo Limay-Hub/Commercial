@@ -20,9 +20,11 @@ create table if not exists store_submissions (
   landmark text,
   contact_number text not null,
   email text,
+  facebook text,
+  instagram text,
   services text[] not null default '{}',   -- e.g. {'Delivery','Pick up','Dine in','On-site Services','Home Services'}
-  logo_url text,                           -- optional, base64 data URL
-  photo_url text not null,                 -- storefront/building/signage photo, base64 data URL
+  logo_url text,                           -- optional, either a base64 data URL (file upload) or a plain image URL
+  photo_url text not null,                 -- storefront/building/signage photo, base64 data URL or plain image URL
   created_at timestamptz not null default now()
 );
 

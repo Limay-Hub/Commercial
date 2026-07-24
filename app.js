@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.10';
+const APP_VERSION = 'LN_SYS_V.1.11';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -579,18 +579,40 @@ function wireEstablishmentPhotoInput(inputId, previewId) {
     if (!file) return;
     const preview = document.getElementById(previewId);
     preview.src = await readFileAsDataUrl(file);
+    preview.dataset.source = 'file';
     preview.hidden = false;
   });
 }
 
+// Lets a submitter paste an image URL instead of uploading a file — both
+// write to the same preview <img>, whose .src is what actually gets
+// submitted, so the two entry paths are interchangeable.
+function wireEstablishmentUrlInput(urlInputId, previewId) {
+  document.getElementById(urlInputId).addEventListener('input', (e) => {
+    const url = e.target.value.trim();
+    const preview = document.getElementById(previewId);
+    if (url) {
+      preview.src = url;
+      preview.dataset.source = 'url';
+      preview.hidden = false;
+    } else if (preview.dataset.source === 'url') {
+      preview.hidden = true;
+      preview.src = '';
+      delete preview.dataset.source;
+    }
+  });
+}
+
 function openAddEstablishment() {
-  ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail'].forEach((id) => { document.getElementById(id).value = ''; });
+  ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail', 'aeFacebook', 'aeInstagram', 'aeLogoUrl', 'aePhotoUrl']
+    .forEach((id) => { document.getElementById(id).value = ''; });
   document.querySelectorAll('.aeService').forEach((cb) => { cb.checked = false; });
   ['aeLogoFile', 'aePhotoFile'].forEach((id) => { document.getElementById(id).value = ''; });
   ['aeLogoPreview', 'aePhotoPreview'].forEach((id) => {
     const el = document.getElementById(id);
     el.hidden = true;
     el.src = '';
+    delete el.dataset.source;
   });
   const note = document.getElementById('addEstablishmentNote');
   note.textContent = '';
@@ -609,6 +631,8 @@ async function submitEstablishment() {
   const landmark = document.getElementById('aeLandmark').value.trim();
   const contactNumber = document.getElementById('aeContact').value.trim();
   const email = document.getElementById('aeEmail').value.trim();
+  const facebook = document.getElementById('aeFacebook').value.trim();
+  const instagram = document.getElementById('aeInstagram').value.trim();
   const services = [...document.querySelectorAll('.aeService:checked')].map((cb) => cb.value);
   const logoPreview = document.getElementById('aeLogoPreview');
   const photoPreview = document.getElementById('aePhotoPreview');
@@ -625,7 +649,7 @@ async function submitEstablishment() {
   }
 
   const submission = {
-    name, address, landmark, contactNumber, email, services,
+    name, address, landmark, contactNumber, email, facebook, instagram, services,
     logo: logoPreview.hidden ? '' : logoPreview.src,
     photo: photoPreview.src,
     submittedAt: new Date().toISOString(),
@@ -642,6 +666,8 @@ async function submitEstablishment() {
       landmark: submission.landmark,
       contact_number: submission.contactNumber,
       email: submission.email,
+      facebook: submission.facebook,
+      instagram: submission.instagram,
       services: submission.services,
       logo_url: submission.logo,
       photo_url: submission.photo,
@@ -670,6 +696,8 @@ function initAddEstablishment() {
   document.getElementById('btnAeSubmit').addEventListener('click', submitEstablishment);
   wireEstablishmentPhotoInput('aeLogoFile', 'aeLogoPreview');
   wireEstablishmentPhotoInput('aePhotoFile', 'aePhotoPreview');
+  wireEstablishmentUrlInput('aeLogoUrl', 'aeLogoPreview');
+  wireEstablishmentUrlInput('aePhotoUrl', 'aePhotoPreview');
 }
 
 /* ============================================================
