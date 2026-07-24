@@ -138,7 +138,7 @@ begin
 end;
 $$;
 
-grant execute on function admin_set_featured_gem(text, text, text) to anon;
+grant execute on function admin_set_featured_gem(text, text, text, text) to anon;
 
 -- ---------------------------------------------------------------------
 -- Promo Cards Manager (Public tab: Clean-up Drive / Photo Contest cards)
@@ -179,7 +179,7 @@ begin
 end;
 $$;
 
-grant execute on function admin_set_promo_card(text, text, text, text) to anon;
+grant execute on function admin_set_promo_card(text, text, text, text, text) to anon;
 
 -- ---------------------------------------------------------------------
 -- Chat Moderation
@@ -231,4 +231,4 @@ begin
 end;
 $$;
 
-grant execute on function admin_set_announcement(text) to anon;
+grant execute on function admin_set_announcement(text, text) to anon;

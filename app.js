@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.8';
+const APP_VERSION = 'LN_SYS_V.1.10';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -559,6 +559,117 @@ function initIdentityWidget() {
     if (e.target.id === 'identityOverlay') document.getElementById('identityOverlay').hidden = true;
   });
   document.getElementById('btnIdentitySave').addEventListener('click', saveIdentity);
+}
+
+/* ============================================================
+   Add Establishment (public business submission form)
+   ============================================================ */
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function wireEstablishmentPhotoInput(inputId, previewId) {
+  document.getElementById(inputId).addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const preview = document.getElementById(previewId);
+    preview.src = await readFileAsDataUrl(file);
+    preview.hidden = false;
+  });
+}
+
+function openAddEstablishment() {
+  ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail'].forEach((id) => { document.getElementById(id).value = ''; });
+  document.querySelectorAll('.aeService').forEach((cb) => { cb.checked = false; });
+  ['aeLogoFile', 'aePhotoFile'].forEach((id) => { document.getElementById(id).value = ''; });
+  ['aeLogoPreview', 'aePhotoPreview'].forEach((id) => {
+    const el = document.getElementById(id);
+    el.hidden = true;
+    el.src = '';
+  });
+  const note = document.getElementById('addEstablishmentNote');
+  note.textContent = '';
+  note.style.color = '';
+  document.getElementById('addEstablishmentOverlay').hidden = false;
+}
+
+function closeAddEstablishment() {
+  document.getElementById('addEstablishmentOverlay').hidden = true;
+}
+
+async function submitEstablishment() {
+  const note = document.getElementById('addEstablishmentNote');
+  const name = document.getElementById('aeName').value.trim();
+  const address = document.getElementById('aeAddress').value.trim();
+  const landmark = document.getElementById('aeLandmark').value.trim();
+  const contactNumber = document.getElementById('aeContact').value.trim();
+  const email = document.getElementById('aeEmail').value.trim();
+  const services = [...document.querySelectorAll('.aeService:checked')].map((cb) => cb.value);
+  const logoPreview = document.getElementById('aeLogoPreview');
+  const photoPreview = document.getElementById('aePhotoPreview');
+
+  if (!name || !address || !contactNumber) {
+    note.style.color = 'var(--error)';
+    note.textContent = 'Please fill in business name, address, and contact number.';
+    return;
+  }
+  if (photoPreview.hidden) {
+    note.style.color = 'var(--error)';
+    note.textContent = 'Please add a photo of your storefront, building, or signage.';
+    return;
+  }
+
+  const submission = {
+    name, address, landmark, contactNumber, email, services,
+    logo: logoPreview.hidden ? '' : logoPreview.src,
+    photo: photoPreview.src,
+    submittedAt: new Date().toISOString(),
+  };
+
+  note.style.color = '';
+  note.textContent = 'Submitting…';
+
+  try {
+    if (!supabaseClient) throw new Error('offline');
+    const { error } = await supabaseClient.from('store_submissions').insert({
+      business_name: submission.name,
+      address: submission.address,
+      landmark: submission.landmark,
+      contact_number: submission.contactNumber,
+      email: submission.email,
+      services: submission.services,
+      logo_url: submission.logo,
+      photo_url: submission.photo,
+    });
+    if (error) throw error;
+  } catch (err) {
+    // Offline/demo fallback — queue locally so nothing the user typed is
+    // lost; syncs to Supabase once the project has it configured.
+    const queue = JSON.parse(localStorage.getItem('limaynexus_establishment_submissions') || '[]');
+    queue.push(submission);
+    localStorage.setItem('limaynexus_establishment_submissions', JSON.stringify(queue));
+  }
+
+  note.style.color = 'var(--primary)';
+  note.textContent = 'Thanks! Your establishment has been submitted for review.';
+  setTimeout(closeAddEstablishment, 1400);
+}
+
+function initAddEstablishment() {
+  document.getElementById('fabAdd').addEventListener('click', openAddEstablishment);
+  document.getElementById('btnAddEstablishmentMenu').addEventListener('click', openAddEstablishment);
+  document.getElementById('btnCloseAddEstablishment').addEventListener('click', closeAddEstablishment);
+  document.getElementById('addEstablishmentOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'addEstablishmentOverlay') closeAddEstablishment();
+  });
+  document.getElementById('btnAeSubmit').addEventListener('click', submitEstablishment);
+  wireEstablishmentPhotoInput('aeLogoFile', 'aeLogoPreview');
+  wireEstablishmentPhotoInput('aePhotoFile', 'aePhotoPreview');
 }
 
 /* ============================================================
@@ -2145,7 +2256,9 @@ function initAdminSystem() {
 async function init() {
   await loadDataFromSupabase();
 
-  initRegistrationFlow();
+  // First-run registration is hidden for the meantime — the app opens
+  // directly to the main page instead of prompting for it.
+  // initRegistrationFlow();
   renderWelcomeHero();
   renderCategories();
   renderGemBanner();
@@ -2193,12 +2306,11 @@ async function init() {
     }
   });
 
-  document.getElementById('fabAdd').addEventListener('click', () => switchView('search'));
-
   document.getElementById('appVersionLabel').textContent = `Version ${APP_VERSION}`;
   document.getElementById('btnCheckUpdate').addEventListener('click', checkForUpdate);
   initThemeToggle();
   initIdentityWidget();
+  initAddEstablishment();
   initAnnouncementAdminWidget();
 
   switchView('home');

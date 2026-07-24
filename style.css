@@ -1386,6 +1386,24 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 .checkbox-row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .checkbox-row label { display: flex; align-items: center; gap: 8px; }
 
+.photo-upload-row { display: flex; align-items: center; gap: 12px; }
+.photo-upload-preview {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius);
+  object-fit: cover;
+  background: var(--surface-container);
+  flex: 0 0 auto;
+}
+.photo-upload-btn {
+  width: auto;
+  flex: 1;
+  padding: 10px;
+  margin-bottom: 0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 /* ===== Admin drawer: edge tab ===== */
 .admin-drawer-tab {
   position: fixed;

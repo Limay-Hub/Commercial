@@ -154,7 +154,7 @@
         </div>
       </div>
 
-      <button class="fab" id="fabAdd" aria-label="Add">
+      <button class="fab" id="fabAdd" aria-label="Add Establishment">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       </button>
     </section>
@@ -343,6 +343,10 @@
             <span>Identity</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </button>
+          <button class="profile-item" id="btnAddEstablishmentMenu">
+            <span>Add Establishment</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
           <button class="profile-item">
             <span>My Reviews</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
@@ -480,6 +484,58 @@
         <input class="field-input" id="idInstagram" type="text">
         <p class="field-note" id="identityNote"></p>
         <button class="btn-primary" id="btnIdentitySave">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Add Establishment overlay ===== -->
+  <div class="overlay" id="addEstablishmentOverlay" hidden>
+    <div class="overlay-sheet">
+      <div class="overlay-header">
+        <h2>Add Your Establishment</h2>
+        <button class="icon-btn" id="btnCloseAddEstablishment" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="overlay-body">
+        <p class="reg-sub">List your business on Limay Nexus so residents can find you.</p>
+
+        <label class="field-label">Company / Business Name</label>
+        <input class="field-input" id="aeName" type="text" placeholder="e.g. The Hearth Pizzeria">
+        <label class="field-label">Address / Location</label>
+        <input class="field-input" id="aeAddress" type="text" placeholder="Street, Barangay, Municipality">
+        <label class="field-label">Landmark (optional)</label>
+        <input class="field-input" id="aeLandmark" type="text" placeholder="e.g. Beside the barangay hall">
+        <label class="field-label">Contact Number</label>
+        <input class="field-input" id="aeContact" type="tel" placeholder="09XX XXX XXXX">
+        <label class="field-label">Email (optional)</label>
+        <input class="field-input" id="aeEmail" type="email">
+
+        <label class="field-label">Services Offered</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" value="Delivery" class="aeService"> Delivery</label>
+          <label><input type="checkbox" value="Pick up" class="aeService"> Pick up</label>
+          <label><input type="checkbox" value="Dine in" class="aeService"> Dine in</label>
+          <label><input type="checkbox" value="On-site Services" class="aeService"> On-site Services</label>
+          <label><input type="checkbox" value="Home Services" class="aeService"> Home Services</label>
+        </div>
+
+        <label class="field-label">Logo (optional)</label>
+        <div class="photo-upload-row">
+          <img class="photo-upload-preview" id="aeLogoPreview" alt="" hidden>
+          <label class="btn-outline photo-upload-btn" for="aeLogoFile">Choose Logo</label>
+          <input type="file" accept="image/*" id="aeLogoFile" hidden>
+        </div>
+
+        <label class="field-label">Photo of Storefront / Building / Signage</label>
+        <div class="photo-upload-row">
+          <img class="photo-upload-preview" id="aePhotoPreview" alt="" hidden>
+          <label class="btn-outline photo-upload-btn" for="aePhotoFile">Choose Photo</label>
+          <input type="file" accept="image/*" id="aePhotoFile" hidden>
+        </div>
+
+        <p class="field-note" id="addEstablishmentNote"></p>
+        <button class="btn-primary" id="btnAeSubmit">Submit for Review</button>
       </div>
     </div>
   </div>
