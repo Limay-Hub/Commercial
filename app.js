@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.18';
+const APP_VERSION = 'LN_SYS_V.1.19';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -2242,12 +2242,32 @@ function renderPublicGallery(images) {
   }
   heading.hidden = false;
   grid.hidden = false;
-  grid.innerHTML = images.map((img) => `
-    <div class="detail-gallery-item">
+  grid.innerHTML = images.map((img, i) => `
+    <div class="detail-gallery-item" data-gallery-idx="${i}">
       <img src="${img.url}" alt="${escapeHtml(img.label || '')}" loading="lazy">
       <span class="detail-gallery-label">${escapeHtml(img.label || '')}</span>
     </div>
   `).join('');
+  grid.querySelectorAll('[data-gallery-idx]').forEach((el) => {
+    el.addEventListener('click', () => openImageLightbox(images[parseInt(el.dataset.galleryIdx, 10)].url));
+  });
+}
+
+function openImageLightbox(url) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('imageLightbox').hidden = false;
+}
+
+function closeImageLightbox() {
+  document.getElementById('imageLightbox').hidden = true;
+  document.getElementById('lightboxImg').src = '';
+}
+
+function initImageLightbox() {
+  document.getElementById('btnCloseLightbox').addEventListener('click', closeImageLightbox);
+  document.getElementById('imageLightbox').addEventListener('click', (e) => {
+    if (e.target.id === 'imageLightbox') closeImageLightbox();
+  });
 }
 
 /* ---- Facebook Page Plugin feed card ---- */
@@ -3040,6 +3060,7 @@ async function init() {
   initThemeToggle();
   initIdentityWidget();
   initGpsPicker();
+  initImageLightbox();
   initAddEstablishment();
   initOwnerEdit();
   initAnnouncementAdminWidget();
