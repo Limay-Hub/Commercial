@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.11';
+const APP_VERSION = 'LN_SYS_V.1.12';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -1934,6 +1934,12 @@ function refreshAdminUI() {
   document.getElementById('adminLoginMenuLabel').textContent = loggedIn ? 'Admin Logout' : 'Admin Login';
   if (!loggedIn) closeAdminDrawerAll();
 
+  // Admin panels are also reachable directly from the Menu tab for the
+  // meantime, alongside the edge-tab pill.
+  ['btnMenuStoreManager', 'btnMenuGemManager', 'btnMenuPromoManager', 'btnMenuChatModeration'].forEach((id) => {
+    document.getElementById(id).hidden = !loggedIn;
+  });
+
   const widget = document.getElementById('adminAnnouncementWidget');
   widget.hidden = !loggedIn;
   if (loggedIn) document.getElementById('announcementInput').value = currentAnnouncementText;
@@ -2256,6 +2262,11 @@ function initAdminSystem() {
       note.textContent = 'Login failed — try again.';
     }
   });
+
+  document.getElementById('btnMenuStoreManager').addEventListener('click', () => openAdminSection('adminStoreManagerSection'));
+  document.getElementById('btnMenuGemManager').addEventListener('click', () => openAdminSection('adminGemManagerSection'));
+  document.getElementById('btnMenuPromoManager').addEventListener('click', () => openAdminSection('adminPromoManagerSection'));
+  document.getElementById('btnMenuChatModeration').addEventListener('click', () => openAdminSection('adminChatModerationSection'));
 
   const tab = document.getElementById('adminDrawerTab');
   tab.addEventListener('click', () => { adminPillOpen ? closeAdminPill() : openAdminPill(); });
