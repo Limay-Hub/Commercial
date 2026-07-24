@@ -232,3 +232,80 @@ end;
 $$;
 
 grant execute on function admin_set_announcement(text, text) to anon;
+
+-- ---------------------------------------------------------------------
+-- Establishment Submissions review (Add Establishment form results)
+-- Run after supabase_submissions_setup.sql. store_submissions has no
+-- public select policy by design, so admin reads/writes go through these
+-- security-definer RPCs instead, same trust model as the rest of this file.
+-- ---------------------------------------------------------------------
+create or replace function admin_list_submissions(p_password text) returns setof store_submissions
+language plpgsql
+security definer
+as $$
+begin
+  if not verify_admin_login(p_password) then
+    raise exception 'Not authorized';
+  end if;
+  return query select * from store_submissions order by created_at desc;
+end;
+$$;
+
+grant execute on function admin_list_submissions(text) to anon;
+
+create or replace function admin_update_submission(
+  p_password text,
+  p_id uuid,
+  p_business_name text,
+  p_address text,
+  p_landmark text,
+  p_contact_number text,
+  p_email text,
+  p_facebook text,
+  p_instagram text,
+  p_services text[],
+  p_logo_url text,
+  p_photo_url text,
+  p_lat numeric,
+  p_lng numeric
+) returns void
+language plpgsql
+security definer
+as $$
+begin
+  if not verify_admin_login(p_password) then
+    raise exception 'Not authorized';
+  end if;
+
+  update store_submissions set
+    business_name = p_business_name,
+    address = p_address,
+    landmark = p_landmark,
+    contact_number = p_contact_number,
+    email = p_email,
+    facebook = p_facebook,
+    instagram = p_instagram,
+    services = p_services,
+    logo_url = nullif(p_logo_url, ''),
+    photo_url = p_photo_url,
+    lat = p_lat,
+    lng = p_lng
+  where id = p_id;
+end;
+$$;
+
+grant execute on function admin_update_submission(text, uuid, text, text, text, text, text, text, text, text[], text, text, numeric, numeric) to anon;
+
+create or replace function admin_delete_submission(p_password text, p_id uuid) returns void
+language plpgsql
+security definer
+as $$
+begin
+  if not verify_admin_login(p_password) then
+    raise exception 'Not authorized';
+  end if;
+  delete from store_submissions where id = p_id;
+end;
+$$;
+
+grant execute on function admin_delete_submission(text, uuid) to anon;

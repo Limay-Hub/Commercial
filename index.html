@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Work+Sans:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -379,6 +380,10 @@
             <span>💬 Chat Moderation</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </button>
+          <button class="profile-item" id="btnMenuSubmissions" hidden>
+            <span>📥 Submissions</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
           <button class="profile-item" id="btnAdminLoginMenuItem">
             <span id="adminLoginMenuLabel">Admin Login</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
@@ -520,6 +525,8 @@
         <input class="field-input" id="aeName" type="text" placeholder="e.g. The Hearth Pizzeria">
         <label class="field-label">Address / Location</label>
         <input class="field-input" id="aeAddress" type="text" placeholder="Street, Barangay, Municipality">
+        <button type="button" class="btn-outline gps-add-btn" id="btnAeAddGps">📍 Add GPS Location (optional)</button>
+        <p class="field-note field-note-muted" id="aeGpsSummary"></p>
         <label class="field-label">Landmark (optional)</label>
         <input class="field-input" id="aeLandmark" type="text" placeholder="e.g. Beside the barangay hall">
         <label class="field-label">Contact Number</label>
@@ -542,7 +549,11 @@
 
         <label class="field-label">Logo (optional)</label>
         <div class="photo-upload-row">
-          <img class="photo-upload-preview" id="aeLogoPreview" alt="" hidden>
+          <div class="photo-thumb-wrap">
+            <img class="photo-upload-preview" id="aeLogoPreview" alt="" hidden>
+            <label class="photo-camera-badge" for="aeLogoCamera" aria-label="Take photo" title="Take photo">📷</label>
+            <input type="file" accept="image/*" capture="environment" id="aeLogoCamera" hidden>
+          </div>
           <label class="btn-outline photo-upload-btn" for="aeLogoFile">Choose Logo</label>
           <input type="file" accept="image/*" id="aeLogoFile" hidden>
         </div>
@@ -550,7 +561,11 @@
 
         <label class="field-label">Photo of Storefront / Building / Signage</label>
         <div class="photo-upload-row">
-          <img class="photo-upload-preview" id="aePhotoPreview" alt="" hidden>
+          <div class="photo-thumb-wrap">
+            <img class="photo-upload-preview" id="aePhotoPreview" alt="" hidden>
+            <label class="photo-camera-badge" for="aePhotoCamera" aria-label="Take photo" title="Take photo">📷</label>
+            <input type="file" accept="image/*" capture="environment" id="aePhotoCamera" hidden>
+          </div>
           <label class="btn-outline photo-upload-btn" for="aePhotoFile">Choose Photo</label>
           <input type="file" accept="image/*" id="aePhotoFile" hidden>
         </div>
@@ -558,6 +573,25 @@
 
         <p class="field-note" id="addEstablishmentNote"></p>
         <button class="btn-primary" id="btnAeSubmit">Submit for Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GPS pin-picker overlay (shared: Add Establishment + admin Submissions edit) ===== -->
+  <div class="overlay" id="gpsPickerOverlay" hidden>
+    <div class="overlay-sheet">
+      <div class="overlay-header">
+        <h2>Pin Exact Location</h2>
+        <button class="icon-btn" id="btnCloseGpsPicker" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="overlay-body">
+        <p class="field-note field-note-muted" id="gpsPickerNote">Locating you…</p>
+        <div class="gps-picker-map" id="gpsPickerMap"></div>
+        <p class="field-note field-note-muted">Tap the map or drag the pin to fine-tune the exact spot.</p>
+        <button type="button" class="btn-outline" id="btnGpsUseCurrent">Use My Current Location</button>
+        <button type="button" class="btn-primary" id="btnGpsConfirm">Confirm Location</button>
       </div>
     </div>
   </div>
@@ -598,6 +632,7 @@
     <button type="button" class="admin-drawer-pill-item" data-target="adminGemManagerSection" title="Featured Gem">✨</button>
     <button type="button" class="admin-drawer-pill-item" data-target="adminPromoManagerSection" title="Promo Cards">📣</button>
     <button type="button" class="admin-drawer-pill-item" data-target="adminChatModerationSection" title="Chat Moderation">💬</button>
+    <button type="button" class="admin-drawer-pill-item" data-target="adminSubmissionsSection" title="Submissions">📥</button>
     <span class="admin-drawer-pill-sep" aria-hidden="true"></span>
     <button type="button" class="admin-drawer-pill-item" id="btnAdminLogoutPill" title="Log Out">⏻</button>
   </div>
@@ -688,6 +723,72 @@
         <div id="adminChatModerationList"></div>
       </div>
 
+      <!-- Establishment Submissions -->
+      <div class="admin-section" id="adminSubmissionsSection" hidden>
+        <h3>Establishment Submissions</h3>
+        <p class="field-note field-note-muted" id="adminSubmissionsListNote"></p>
+        <div id="adminSubmissionsList"></div>
+
+        <div class="admin-form" id="adminSubmissionForm" hidden>
+          <input type="hidden" id="asubId">
+          <label class="field-label">Company / Business Name</label>
+          <input class="field-input" id="asubName" type="text">
+          <label class="field-label">Address / Location</label>
+          <input class="field-input" id="asubAddress" type="text">
+          <button type="button" class="btn-outline gps-add-btn" id="btnAsubGps">📍 Add / Edit GPS Location</button>
+          <p class="field-note field-note-muted" id="asubGpsSummary"></p>
+          <label class="field-label">Landmark</label>
+          <input class="field-input" id="asubLandmark" type="text">
+          <label class="field-label">Contact Number</label>
+          <input class="field-input" id="asubContact" type="tel">
+          <label class="field-label">Email</label>
+          <input class="field-input" id="asubEmail" type="email">
+          <label class="field-label">Facebook Page</label>
+          <input class="field-input" id="asubFacebook" type="text">
+          <label class="field-label">Instagram Page</label>
+          <input class="field-input" id="asubInstagram" type="text">
+
+          <label class="field-label">Services Offered</label>
+          <div class="checkbox-row">
+            <label><input type="checkbox" value="Delivery" class="asubService"> Delivery</label>
+            <label><input type="checkbox" value="Pick up" class="asubService"> Pick up</label>
+            <label><input type="checkbox" value="Dine in" class="asubService"> Dine in</label>
+            <label><input type="checkbox" value="On-site Services" class="asubService"> On-site Services</label>
+            <label><input type="checkbox" value="Home Services" class="asubService"> Home Services</label>
+          </div>
+
+          <label class="field-label">Logo</label>
+          <div class="photo-upload-row">
+            <div class="photo-thumb-wrap">
+              <img class="photo-upload-preview" id="asubLogoPreview" alt="" hidden>
+              <label class="photo-camera-badge" for="asubLogoCamera" aria-label="Take photo" title="Take photo">📷</label>
+              <input type="file" accept="image/*" capture="environment" id="asubLogoCamera" hidden>
+            </div>
+            <label class="btn-outline photo-upload-btn" for="asubLogoFile">Choose Logo</label>
+            <input type="file" accept="image/*" id="asubLogoFile" hidden>
+          </div>
+          <input class="field-input photo-url-input" id="asubLogoUrl" type="url" placeholder="…or paste an image URL instead">
+
+          <label class="field-label">Photo of Storefront / Building / Signage</label>
+          <div class="photo-upload-row">
+            <div class="photo-thumb-wrap">
+              <img class="photo-upload-preview" id="asubPhotoPreview" alt="" hidden>
+              <label class="photo-camera-badge" for="asubPhotoCamera" aria-label="Take photo" title="Take photo">📷</label>
+              <input type="file" accept="image/*" capture="environment" id="asubPhotoCamera" hidden>
+            </div>
+            <label class="btn-outline photo-upload-btn" for="asubPhotoFile">Choose Photo</label>
+            <input type="file" accept="image/*" id="asubPhotoFile" hidden>
+          </div>
+          <input class="field-input photo-url-input" id="asubPhotoUrl" type="url" placeholder="…or paste an image URL instead">
+
+          <p class="field-note" id="adminSubmissionFormNote"></p>
+          <div class="admin-form-actions">
+            <button class="btn-outline" id="btnAsubDelete">Delete</button>
+            <button class="btn-primary" id="btnAsubSave">Save Changes</button>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -724,6 +825,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>

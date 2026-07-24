@@ -1387,13 +1387,38 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 .checkbox-row label { display: flex; align-items: center; gap: 8px; }
 
 .photo-upload-row { display: flex; align-items: center; gap: 12px; }
-.photo-upload-preview {
+.photo-thumb-wrap {
+  position: relative;
   width: 52px;
   height: 52px;
+  flex: 0 0 auto;
+  border-radius: var(--radius);
+  background: var(--surface-container);
+}
+.photo-upload-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   border-radius: var(--radius);
   object-fit: cover;
-  background: var(--surface-container);
-  flex: 0 0 auto;
+}
+.photo-camera-badge {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  border: 2px solid var(--surface-container-lowest);
 }
 .photo-upload-btn {
   width: auto;
@@ -1404,6 +1429,17 @@ textarea.field-input { resize: vertical; font-family: inherit; }
   cursor: pointer;
 }
 .photo-url-input { margin-top: 8px; font-size: 13px; }
+
+.gps-add-btn { margin-top: 10px; margin-bottom: 4px; font-size: 13px; padding: 10px; }
+.gps-picker-map {
+  width: 100%;
+  height: 280px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 10px 0;
+  background: var(--surface-container);
+}
+.gps-picker-map .leaflet-container { font-family: inherit; }
 
 /* ===== Admin drawer: edge tab ===== */
 .admin-drawer-tab {

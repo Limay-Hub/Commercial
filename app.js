@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.12';
+const APP_VERSION = 'LN_SYS_V.1.13';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -562,6 +562,96 @@ function initIdentityWidget() {
 }
 
 /* ============================================================
+   GPS pin picker (shared by Add Establishment + admin Submissions edit)
+   — same Leaflet + CARTO Voyager tile stack as the Winfinity Fitness
+   Tracker's outdoor map, no API key required.
+   ============================================================ */
+let gpsPickerMap = null;
+let gpsPickerMarker = null;
+let gpsPickerPending = null;
+let gpsPickerOnConfirm = null;
+const GPS_PICKER_DEFAULT_CENTER = { lat: 14.5658, lng: 120.5453 }; // Limay, Bataan
+
+function setGpsPickerPin(lat, lng) {
+  gpsPickerPending = { lat, lng };
+  if (gpsPickerMarker) {
+    gpsPickerMarker.setLatLng([lat, lng]);
+  } else {
+    gpsPickerMarker = L.marker([lat, lng], { draggable: true }).addTo(gpsPickerMap);
+    gpsPickerMarker.on('dragend', () => {
+      const pos = gpsPickerMarker.getLatLng();
+      gpsPickerPending = { lat: pos.lat, lng: pos.lng };
+    });
+  }
+}
+
+function locateForGpsPicker() {
+  const note = document.getElementById('gpsPickerNote');
+  if (!navigator.geolocation) {
+    note.textContent = 'Geolocation not supported on this device — tap the map to pin manually.';
+    return;
+  }
+  note.textContent = 'Locating you…';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      gpsPickerMap.setView([latitude, longitude], 17);
+      setGpsPickerPin(latitude, longitude);
+      note.textContent = 'Drag the pin or tap the map to fine-tune.';
+    },
+    () => { note.textContent = 'Could not get your location — tap the map to pin manually.'; },
+    { timeout: 8000 }
+  );
+}
+
+// initialCoords: {lat, lng} to start from, or null to attempt GPS first.
+// onConfirm receives {lat, lng} when the user taps "Confirm Location".
+function openGpsPicker(initialCoords, onConfirm) {
+  gpsPickerOnConfirm = onConfirm;
+  document.getElementById('gpsPickerOverlay').hidden = false;
+  document.getElementById('gpsPickerNote').textContent = 'Locating you…';
+
+  requestAnimationFrame(() => {
+    if (!gpsPickerMap) {
+      gpsPickerMap = L.map('gpsPickerMap', { zoomControl: true, attributionControl: true });
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19, subdomains: 'abcd', attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      }).addTo(gpsPickerMap);
+      gpsPickerMap.on('click', (e) => setGpsPickerPin(e.latlng.lat, e.latlng.lng));
+    }
+    const start = initialCoords || GPS_PICKER_DEFAULT_CENTER;
+    gpsPickerMap.setView([start.lat, start.lng], initialCoords ? 17 : 14);
+    setGpsPickerPin(start.lat, start.lng);
+    gpsPickerMap.invalidateSize();
+    if (!initialCoords) locateForGpsPicker();
+    else document.getElementById('gpsPickerNote').textContent = 'Drag the pin or tap the map to fine-tune.';
+  });
+}
+
+function closeGpsPicker() {
+  document.getElementById('gpsPickerOverlay').hidden = true;
+}
+
+function confirmGpsPin() {
+  if (!gpsPickerPending) return;
+  closeGpsPicker();
+  if (gpsPickerOnConfirm) gpsPickerOnConfirm(gpsPickerPending);
+}
+
+function initGpsPicker() {
+  document.getElementById('btnCloseGpsPicker').addEventListener('click', closeGpsPicker);
+  document.getElementById('gpsPickerOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'gpsPickerOverlay') closeGpsPicker();
+  });
+  document.getElementById('btnGpsUseCurrent').addEventListener('click', locateForGpsPicker);
+  document.getElementById('btnGpsConfirm').addEventListener('click', confirmGpsPin);
+}
+
+function formatGpsSummary(coords) {
+  return coords ? `📍 Location pinned (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})` : '';
+}
+
+/* ============================================================
    Add Establishment (public business submission form)
    ============================================================ */
 function readFileAsDataUrl(file) {
@@ -603,17 +693,21 @@ function wireEstablishmentUrlInput(urlInputId, previewId) {
   });
 }
 
+let aeGpsCoords = null;
+
 function openAddEstablishment() {
   ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail', 'aeFacebook', 'aeInstagram', 'aeLogoUrl', 'aePhotoUrl']
     .forEach((id) => { document.getElementById(id).value = ''; });
   document.querySelectorAll('.aeService').forEach((cb) => { cb.checked = false; });
-  ['aeLogoFile', 'aePhotoFile'].forEach((id) => { document.getElementById(id).value = ''; });
+  ['aeLogoFile', 'aeLogoCamera', 'aePhotoFile', 'aePhotoCamera'].forEach((id) => { document.getElementById(id).value = ''; });
   ['aeLogoPreview', 'aePhotoPreview'].forEach((id) => {
     const el = document.getElementById(id);
     el.hidden = true;
     el.src = '';
     delete el.dataset.source;
   });
+  aeGpsCoords = null;
+  document.getElementById('aeGpsSummary').textContent = '';
   const note = document.getElementById('addEstablishmentNote');
   note.textContent = '';
   note.style.color = '';
@@ -652,6 +746,8 @@ async function submitEstablishment() {
     name, address, landmark, contactNumber, email, facebook, instagram, services,
     logo: logoPreview.hidden ? '' : logoPreview.src,
     photo: photoPreview.src,
+    lat: aeGpsCoords ? aeGpsCoords.lat : null,
+    lng: aeGpsCoords ? aeGpsCoords.lng : null,
     submittedAt: new Date().toISOString(),
   };
 
@@ -671,6 +767,8 @@ async function submitEstablishment() {
       services: submission.services,
       logo_url: submission.logo,
       photo_url: submission.photo,
+      lat: submission.lat,
+      lng: submission.lng,
     });
     if (error) throw error;
   } catch (err) {
@@ -695,9 +793,18 @@ function initAddEstablishment() {
   });
   document.getElementById('btnAeSubmit').addEventListener('click', submitEstablishment);
   wireEstablishmentPhotoInput('aeLogoFile', 'aeLogoPreview');
+  wireEstablishmentPhotoInput('aeLogoCamera', 'aeLogoPreview');
   wireEstablishmentPhotoInput('aePhotoFile', 'aePhotoPreview');
+  wireEstablishmentPhotoInput('aePhotoCamera', 'aePhotoPreview');
   wireEstablishmentUrlInput('aeLogoUrl', 'aeLogoPreview');
   wireEstablishmentUrlInput('aePhotoUrl', 'aePhotoPreview');
+
+  document.getElementById('btnAeAddGps').addEventListener('click', () => {
+    openGpsPicker(aeGpsCoords, (coords) => {
+      aeGpsCoords = coords;
+      document.getElementById('aeGpsSummary').textContent = formatGpsSummary(coords);
+    });
+  });
 }
 
 /* ============================================================
@@ -1936,7 +2043,7 @@ function refreshAdminUI() {
 
   // Admin panels are also reachable directly from the Menu tab for the
   // meantime, alongside the edge-tab pill.
-  ['btnMenuStoreManager', 'btnMenuGemManager', 'btnMenuPromoManager', 'btnMenuChatModeration'].forEach((id) => {
+  ['btnMenuStoreManager', 'btnMenuGemManager', 'btnMenuPromoManager', 'btnMenuChatModeration', 'btnMenuSubmissions'].forEach((id) => {
     document.getElementById(id).hidden = !loggedIn;
   });
 
@@ -1982,6 +2089,7 @@ function openAdminSection(sectionId) {
   if (sectionId === 'adminGemManagerSection') openGemManagerForm();
   if (sectionId === 'adminPromoManagerSection') renderAdminPromoCards();
   if (sectionId === 'adminChatModerationSection') renderAdminChatModeration();
+  if (sectionId === 'adminSubmissionsSection') renderAdminSubmissionsList();
 }
 
 async function adminRpc(fnName, params) {
@@ -2221,6 +2329,128 @@ async function deleteChatMessage(id) {
   }
 }
 
+/* ---- Establishment Submissions ---- */
+let adminSubmissions = [];
+let asubGpsCoords = null;
+
+async function renderAdminSubmissionsList() {
+  const list = document.getElementById('adminSubmissionsList');
+  const note = document.getElementById('adminSubmissionsListNote');
+  note.textContent = 'Loading…';
+  list.innerHTML = '';
+  document.getElementById('adminSubmissionForm').hidden = true;
+
+  try {
+    adminSubmissions = await adminRpc('admin_list_submissions', {}) || [];
+  } catch (err) {
+    note.textContent = 'Could not load submissions: ' + (err.message || 'unknown error');
+    return;
+  }
+
+  note.textContent = adminSubmissions.length
+    ? `${adminSubmissions.length} submission${adminSubmissions.length === 1 ? '' : 's'}`
+    : 'No establishment submissions yet.';
+
+  list.innerHTML = adminSubmissions.map((s) => `
+    <div class="admin-store-item">
+      <div>
+        <p class="admin-store-item-name">${escapeHtml(s.business_name)}</p>
+        <span class="admin-store-item-meta">${escapeHtml(s.address || '—')} · ${timeLabel(s.created_at)}</span>
+      </div>
+      <div class="admin-store-item-actions">
+        <button class="admin-icon-btn-sm" data-edit-sub="${s.id}">✏️</button>
+        <button class="admin-icon-btn-sm" data-delete-sub="${s.id}">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('[data-edit-sub]').forEach((btn) => {
+    btn.addEventListener('click', () => openSubmissionForm(adminSubmissions.find((s) => s.id === btn.dataset.editSub)));
+  });
+  list.querySelectorAll('[data-delete-sub]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteSubmission(btn.dataset.deleteSub));
+  });
+}
+
+function openSubmissionForm(submission) {
+  document.getElementById('asubId').value = submission.id;
+  document.getElementById('asubName').value = submission.business_name || '';
+  document.getElementById('asubAddress').value = submission.address || '';
+  document.getElementById('asubLandmark').value = submission.landmark || '';
+  document.getElementById('asubContact').value = submission.contact_number || '';
+  document.getElementById('asubEmail').value = submission.email || '';
+  document.getElementById('asubFacebook').value = submission.facebook || '';
+  document.getElementById('asubInstagram').value = submission.instagram || '';
+
+  document.querySelectorAll('.asubService').forEach((cb) => {
+    cb.checked = !!submission.services?.includes(cb.value);
+  });
+
+  ['asubLogoFile', 'asubLogoCamera', 'asubLogoUrl', 'asubPhotoFile', 'asubPhotoCamera', 'asubPhotoUrl'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  const logoPreview = document.getElementById('asubLogoPreview');
+  logoPreview.src = submission.logo_url || '';
+  logoPreview.hidden = !submission.logo_url;
+  delete logoPreview.dataset.source;
+  const photoPreview = document.getElementById('asubPhotoPreview');
+  photoPreview.src = submission.photo_url || '';
+  photoPreview.hidden = !submission.photo_url;
+  delete photoPreview.dataset.source;
+
+  asubGpsCoords = (submission.lat != null && submission.lng != null) ? { lat: submission.lat, lng: submission.lng } : null;
+  document.getElementById('asubGpsSummary').textContent = formatGpsSummary(asubGpsCoords);
+
+  document.getElementById('adminSubmissionFormNote').textContent = '';
+  document.getElementById('adminSubmissionForm').hidden = false;
+  document.getElementById('adminSubmissionForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveSubmission() {
+  const note = document.getElementById('adminSubmissionFormNote');
+  const id = document.getElementById('asubId').value;
+  const name = document.getElementById('asubName').value.trim();
+  const address = document.getElementById('asubAddress').value.trim();
+  if (!name || !address) { note.textContent = 'Business name and address are required.'; return; }
+
+  const logoPreview = document.getElementById('asubLogoPreview');
+  const photoPreview = document.getElementById('asubPhotoPreview');
+  const services = [...document.querySelectorAll('.asubService:checked')].map((cb) => cb.value);
+
+  note.textContent = 'Saving…';
+  try {
+    await adminRpc('admin_update_submission', {
+      p_id: id,
+      p_business_name: name,
+      p_address: address,
+      p_landmark: document.getElementById('asubLandmark').value.trim(),
+      p_contact_number: document.getElementById('asubContact').value.trim(),
+      p_email: document.getElementById('asubEmail').value.trim(),
+      p_facebook: document.getElementById('asubFacebook').value.trim(),
+      p_instagram: document.getElementById('asubInstagram').value.trim(),
+      p_services: services,
+      p_logo_url: logoPreview.hidden ? '' : logoPreview.src,
+      p_photo_url: photoPreview.hidden ? '' : photoPreview.src,
+      p_lat: asubGpsCoords ? asubGpsCoords.lat : null,
+      p_lng: asubGpsCoords ? asubGpsCoords.lng : null,
+    });
+    document.getElementById('adminSubmissionForm').hidden = true;
+    renderAdminSubmissionsList();
+  } catch (err) {
+    note.textContent = 'Save failed: ' + (err.message || 'unknown error');
+  }
+}
+
+async function deleteSubmission(id) {
+  if (!confirm('Delete this submission?')) return;
+  try {
+    await adminRpc('admin_delete_submission', { p_id: id });
+    renderAdminSubmissionsList();
+  } catch (err) {
+    alert('Delete failed: ' + (err.message || 'unknown error'));
+  }
+}
+
 /* ---- Init / wiring ---- */
 function initAdminSystem() {
   refreshAdminUI();
@@ -2267,6 +2497,7 @@ function initAdminSystem() {
   document.getElementById('btnMenuGemManager').addEventListener('click', () => openAdminSection('adminGemManagerSection'));
   document.getElementById('btnMenuPromoManager').addEventListener('click', () => openAdminSection('adminPromoManagerSection'));
   document.getElementById('btnMenuChatModeration').addEventListener('click', () => openAdminSection('adminChatModerationSection'));
+  document.getElementById('btnMenuSubmissions').addEventListener('click', () => openAdminSection('adminSubmissionsSection'));
 
   const tab = document.getElementById('adminDrawerTab');
   tab.addEventListener('click', () => { adminPillOpen ? closeAdminPill() : openAdminPill(); });
@@ -2287,6 +2518,21 @@ function initAdminSystem() {
   document.getElementById('btnAsAddService').addEventListener('click', () => addServiceRow(null));
   document.getElementById('btnAsSave').addEventListener('click', saveStore);
   document.getElementById('btnAgSave').addEventListener('click', saveGem);
+
+  wireEstablishmentPhotoInput('asubLogoFile', 'asubLogoPreview');
+  wireEstablishmentPhotoInput('asubLogoCamera', 'asubLogoPreview');
+  wireEstablishmentPhotoInput('asubPhotoFile', 'asubPhotoPreview');
+  wireEstablishmentPhotoInput('asubPhotoCamera', 'asubPhotoPreview');
+  wireEstablishmentUrlInput('asubLogoUrl', 'asubLogoPreview');
+  wireEstablishmentUrlInput('asubPhotoUrl', 'asubPhotoPreview');
+  document.getElementById('btnAsubGps').addEventListener('click', () => {
+    openGpsPicker(asubGpsCoords, (coords) => {
+      asubGpsCoords = coords;
+      document.getElementById('asubGpsSummary').textContent = formatGpsSummary(coords);
+    });
+  });
+  document.getElementById('btnAsubSave').addEventListener('click', saveSubmission);
+  document.getElementById('btnAsubDelete').addEventListener('click', () => deleteSubmission(document.getElementById('asubId').value));
 }
 
 /* ============================================================
@@ -2349,6 +2595,7 @@ async function init() {
   document.getElementById('btnCheckUpdate').addEventListener('click', checkForUpdate);
   initThemeToggle();
   initIdentityWidget();
+  initGpsPicker();
   initAddEstablishment();
   initAnnouncementAdminWidget();
 
