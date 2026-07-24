@@ -45,6 +45,7 @@ create table if not exists stores (
   fulfillment_methods text[] not null default '{}',  -- e.g. {'Store Pickup','Curbside','Local Delivery'}
   facebook text,
   instagram text,
+  tiktok text,
   email text,
   contact_number text,
   submitter_share_key uuid,          -- set when this store came from an approved Add Establishment

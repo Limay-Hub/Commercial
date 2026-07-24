@@ -253,10 +253,11 @@ $$;
 
 grant execute on function admin_list_submissions(text) to anon;
 
--- Signature grew a p_category_id param since first written — drop the old
--- 14-arg version first so `create or replace` doesn't just add a second
--- overload alongside it.
+-- Signature grew p_category_id then p_tiktok since first written — drop
+-- prior versions first so `create or replace` doesn't just add another
+-- overload alongside them.
 drop function if exists admin_update_submission(text, uuid, text, text, text, text, text, text, text, text[], text, text, numeric, numeric);
+drop function if exists admin_update_submission(text, uuid, text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric);
 
 create or replace function admin_update_submission(
   p_password text,
@@ -269,6 +270,7 @@ create or replace function admin_update_submission(
   p_email text,
   p_facebook text,
   p_instagram text,
+  p_tiktok text,
   p_services text[],
   p_logo_url text,
   p_photo_url text,
@@ -292,6 +294,7 @@ begin
     email = p_email,
     facebook = p_facebook,
     instagram = p_instagram,
+    tiktok = p_tiktok,
     services = p_services,
     logo_url = nullif(p_logo_url, ''),
     photo_url = p_photo_url,
@@ -301,7 +304,7 @@ begin
 end;
 $$;
 
-grant execute on function admin_update_submission(text, uuid, text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric) to anon;
+grant execute on function admin_update_submission(text, uuid, text, text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric) to anon;
 
 create or replace function admin_delete_submission(p_password text, p_id uuid) returns void
 language plpgsql
@@ -345,13 +348,13 @@ begin
 
   insert into stores (
     slug, category_id, name, cuisine, rating, description, status, status_label,
-    image_url, address, fulfillment_methods, facebook, instagram, email, contact_number,
+    image_url, address, fulfillment_methods, facebook, instagram, tiktok, email, contact_number,
     lat, lng, submitter_share_key, sort_order
   ) values (
     v_slug, v_sub.category_id, v_sub.business_name, '', 0, '', 'open', 'Open Now',
     coalesce(nullif(v_sub.photo_url, ''), nullif(v_sub.logo_url, '')),
     v_sub.address || case when coalesce(v_sub.landmark, '') <> '' then ' (near ' || v_sub.landmark || ')' else '' end,
-    coalesce(v_sub.services, '{}'), v_sub.facebook, v_sub.instagram, v_sub.email, v_sub.contact_number,
+    coalesce(v_sub.services, '{}'), v_sub.facebook, v_sub.instagram, v_sub.tiktok, v_sub.email, v_sub.contact_number,
     v_sub.lat, v_sub.lng, v_sub.submitter_share_key, 999
   )
   returning id into v_store_id;

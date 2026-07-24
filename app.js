@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.16';
+const APP_VERSION = 'LN_SYS_V.1.17';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -305,6 +305,7 @@ async function loadDataFromSupabase() {
         lng: s.lng,
         facebook: s.facebook,
         instagram: s.instagram,
+        tiktok: s.tiktok,
         email: s.email,
         contactNumber: s.contact_number,
         submitterShareKey: s.submitter_share_key,
@@ -806,7 +807,7 @@ function wireEstablishmentUrlInput(urlInputId, previewId) {
 let aeGpsCoords = null;
 
 function openAddEstablishment() {
-  ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail', 'aeFacebook', 'aeInstagram', 'aeLogoUrl', 'aePhotoUrl']
+  ['aeName', 'aeAddress', 'aeLandmark', 'aeContact', 'aeEmail', 'aeFacebook', 'aeInstagram', 'aeTiktok', 'aeLogoUrl', 'aePhotoUrl']
     .forEach((id) => { document.getElementById(id).value = ''; });
   document.getElementById('aeCategory').selectedIndex = 0;
   document.querySelectorAll('.aeService').forEach((cb) => { cb.checked = false; });
@@ -839,6 +840,7 @@ async function submitEstablishment() {
   const email = document.getElementById('aeEmail').value.trim();
   const facebook = document.getElementById('aeFacebook').value.trim();
   const instagram = document.getElementById('aeInstagram').value.trim();
+  const tiktok = document.getElementById('aeTiktok').value.trim();
   const services = [...document.querySelectorAll('.aeService:checked')].map((cb) => cb.value);
   const logoPreview = document.getElementById('aeLogoPreview');
   const photoPreview = document.getElementById('aePhotoPreview');
@@ -855,7 +857,7 @@ async function submitEstablishment() {
   }
 
   const submission = {
-    name, categoryId, address, landmark, contactNumber, email, facebook, instagram, services,
+    name, categoryId, address, landmark, contactNumber, email, facebook, instagram, tiktok, services,
     logo: logoPreview.hidden ? '' : logoPreview.src,
     photo: photoPreview.src,
     lat: aeGpsCoords ? aeGpsCoords.lat : null,
@@ -882,6 +884,7 @@ async function submitEstablishment() {
       p_email: submission.email,
       p_facebook: submission.facebook,
       p_instagram: submission.instagram,
+      p_tiktok: submission.tiktok,
       p_services: submission.services,
       p_logo_url: submission.logo,
       p_photo_url: submission.photo,
@@ -947,6 +950,7 @@ function openOwnerEditForm(store) {
   document.getElementById('oeEmail').value = store.email || '';
   document.getElementById('oeFacebook').value = store.facebook || '';
   document.getElementById('oeInstagram').value = store.instagram || '';
+  document.getElementById('oeTiktok').value = store.tiktok || '';
 
   document.querySelectorAll('.oeService').forEach((cb) => {
     cb.checked = !!store.fulfillment?.includes(cb.value);
@@ -998,6 +1002,7 @@ async function saveOwnerEdit() {
       p_fulfillment_methods: fulfillment,
       p_facebook: document.getElementById('oeFacebook').value.trim(),
       p_instagram: document.getElementById('oeInstagram').value.trim(),
+      p_tiktok: document.getElementById('oeTiktok').value.trim(),
       p_email: document.getElementById('oeEmail').value.trim(),
       p_contact_number: document.getElementById('oeContact').value.trim(),
       p_lat: oeGpsCoords ? oeGpsCoords.lat : null,
@@ -2201,8 +2206,28 @@ function renderDetail(store) {
 
   renderPublicGallery(store.gallery || []);
   renderFbFeedCard(store.facebook);
+  renderSocialLinksRow(store);
 
   updateFavButton();
+}
+
+function renderSocialLinksRow(store) {
+  const row = document.getElementById('socialLinksRow');
+  const links = [
+    { url: store.facebook, icon: '📘', label: 'Facebook' },
+    { url: store.instagram, icon: '📸', label: 'Instagram' },
+    { url: store.tiktok, icon: '🎵', label: 'TikTok' },
+  ].filter((l) => l.url);
+
+  if (!links.length) {
+    row.hidden = true;
+    row.innerHTML = '';
+    return;
+  }
+  row.hidden = false;
+  row.innerHTML = links.map((l) => `
+    <a class="social-link-btn" href="${escapeHtml(normalizeSocialUrl(l.url))}" target="_blank" rel="noopener" aria-label="${l.label}">${l.icon}</a>
+  `).join('');
 }
 
 /* ---- Gallery: public display ---- */
@@ -2243,7 +2268,7 @@ function loadFacebookSdk() {
   return fbSdkLoading;
 }
 
-function normalizeFacebookUrl(raw) {
+function normalizeSocialUrl(raw) {
   const trimmed = (raw || '').trim();
   if (!trimmed) return '';
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -2252,7 +2277,7 @@ function normalizeFacebookUrl(raw) {
 async function renderFbFeedCard(facebookRaw) {
   const heading = document.getElementById('fbFeedHeading');
   const card = document.getElementById('fbFeedCard');
-  const url = normalizeFacebookUrl(facebookRaw);
+  const url = normalizeSocialUrl(facebookRaw);
   if (!url) {
     heading.hidden = true;
     card.hidden = true;
@@ -2774,6 +2799,7 @@ function openSubmissionForm(submission) {
   document.getElementById('asubEmail').value = submission.email || '';
   document.getElementById('asubFacebook').value = submission.facebook || '';
   document.getElementById('asubInstagram').value = submission.instagram || '';
+  document.getElementById('asubTiktok').value = submission.tiktok || '';
 
   document.querySelectorAll('.asubService').forEach((cb) => {
     cb.checked = !!submission.services?.includes(cb.value);
@@ -2822,6 +2848,7 @@ async function saveSubmission() {
       p_email: document.getElementById('asubEmail').value.trim(),
       p_facebook: document.getElementById('asubFacebook').value.trim(),
       p_instagram: document.getElementById('asubInstagram').value.trim(),
+      p_tiktok: document.getElementById('asubTiktok').value.trim(),
       p_services: services,
       p_logo_url: logoPreview.hidden ? '' : logoPreview.src,
       p_photo_url: photoPreview.hidden ? '' : photoPreview.src,

@@ -23,6 +23,7 @@ create table if not exists store_submissions (
   email text,
   facebook text,
   instagram text,
+  tiktok text,
   services text[] not null default '{}',   -- e.g. {'Delivery','Pick up','Dine in','On-site Services','Home Services'}
   logo_url text,                           -- optional, either a base64 data URL (file upload) or a plain image URL
   photo_url text not null,                 -- storefront/building/signage photo, base64 data URL or plain image URL
@@ -55,6 +56,7 @@ create or replace function submit_establishment(
   p_email text,
   p_facebook text,
   p_instagram text,
+  p_tiktok text,
   p_services text[],
   p_logo_url text,
   p_photo_url text,
@@ -70,17 +72,17 @@ declare
 begin
   insert into store_submissions (
     business_name, category_id, address, landmark, contact_number, email,
-    facebook, instagram, services, logo_url, photo_url, lat, lng, submitter_share_key
+    facebook, instagram, tiktok, services, logo_url, photo_url, lat, lng, submitter_share_key
   ) values (
     p_business_name, p_category_id, p_address, p_landmark, p_contact_number, p_email,
-    p_facebook, p_instagram, p_services, p_logo_url, p_photo_url, p_lat, p_lng, p_submitter_share_key
+    p_facebook, p_instagram, p_tiktok, p_services, p_logo_url, p_photo_url, p_lat, p_lng, p_submitter_share_key
   )
   returning id into v_id;
   return v_id;
 end;
 $$;
 
-grant execute on function submit_establishment(text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric, uuid) to anon;
+grant execute on function submit_establishment(text, text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric, uuid) to anon;
 
 -- ---------------------------------------------------------------------
 -- submission_notifications — "your establishment was approved!" alerts,

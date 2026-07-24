@@ -12,6 +12,11 @@
 -- ---------------------------------------------------------------------
 -- Owner self-edit
 -- ---------------------------------------------------------------------
+-- Signature grew a p_tiktok param since first written — drop the old
+-- 15-arg version first so `create or replace` doesn't just add a second
+-- overload alongside it.
+drop function if exists owner_update_store(uuid, uuid, text, text, text, text, text, text, text[], text, text, text, text, numeric, numeric);
+
 create or replace function owner_update_store(
   p_share_key uuid,
   p_store_id uuid,
@@ -24,6 +29,7 @@ create or replace function owner_update_store(
   p_fulfillment_methods text[],
   p_facebook text,
   p_instagram text,
+  p_tiktok text,
   p_email text,
   p_contact_number text,
   p_lat numeric,
@@ -47,6 +53,7 @@ begin
     fulfillment_methods = p_fulfillment_methods,
     facebook = p_facebook,
     instagram = p_instagram,
+    tiktok = p_tiktok,
     email = p_email,
     contact_number = p_contact_number,
     lat = p_lat,
@@ -55,7 +62,7 @@ begin
 end;
 $$;
 
-grant execute on function owner_update_store(uuid, uuid, text, text, text, text, text, text, text[], text, text, text, text, numeric, numeric) to anon;
+grant execute on function owner_update_store(uuid, uuid, text, text, text, text, text, text, text[], text, text, text, text, text, numeric, numeric) to anon;
 
 -- ---------------------------------------------------------------------
 -- Gallery management — admin (p_password) OR the store's owner
