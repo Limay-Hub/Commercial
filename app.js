@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.17';
+const APP_VERSION = 'LN_SYS_V.1.18';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -2541,6 +2541,11 @@ function openStoreForm(store) {
   document.getElementById('asStatusLabel').value = store?.statusLabel || 'Open Now';
   document.getElementById('asImageUrl').value = store?.image || '';
   document.getElementById('asAddress').value = store?.address || '';
+  document.getElementById('asContact').value = store?.contactNumber || '';
+  document.getElementById('asEmail').value = store?.email || '';
+  document.getElementById('asFacebook').value = store?.facebook || '';
+  document.getElementById('asInstagram').value = store?.instagram || '';
+  document.getElementById('asTiktok').value = store?.tiktok || '';
 
   document.querySelectorAll('.asFulfillment').forEach(cb => {
     cb.checked = !!store?.fulfillment?.includes(cb.value);
@@ -2594,6 +2599,11 @@ async function saveStore() {
       p_image_url: document.getElementById('asImageUrl').value.trim(),
       p_address: document.getElementById('asAddress').value.trim(),
       p_fulfillment_methods: fulfillment,
+      p_contact_number: document.getElementById('asContact').value.trim(),
+      p_email: document.getElementById('asEmail').value.trim(),
+      p_facebook: document.getElementById('asFacebook').value.trim(),
+      p_instagram: document.getElementById('asInstagram').value.trim(),
+      p_tiktok: document.getElementById('asTiktok').value.trim(),
       p_sort_order: STORES.length + 1,
     });
     await adminRpc('admin_set_store_services', { p_store_id: storeId, p_services: services });

@@ -24,6 +24,11 @@ grant execute on function verify_admin_login(text) to anon;
 -- ---------------------------------------------------------------------
 -- Store Manager
 -- ---------------------------------------------------------------------
+-- Signature grew contact_number/email/facebook/instagram/tiktok since
+-- first written — drop the old 14-arg version first so `create or
+-- replace` doesn't just add a second overload alongside it.
+drop function if exists admin_upsert_store(text, uuid, text, text, text, text, numeric, text, text, text, text, text, text[], integer);
+
 create or replace function admin_upsert_store(
   p_password text,
   p_id uuid,
@@ -38,6 +43,11 @@ create or replace function admin_upsert_store(
   p_image_url text,
   p_address text,
   p_fulfillment_methods text[],
+  p_contact_number text,
+  p_email text,
+  p_facebook text,
+  p_instagram text,
+  p_tiktok text,
   p_sort_order integer
 ) returns uuid
 language plpgsql
@@ -51,8 +61,14 @@ begin
   end if;
 
   if p_id is null then
-    insert into stores (slug, category_id, name, cuisine, rating, description, status, status_label, image_url, address, fulfillment_methods, sort_order)
-    values (p_slug, p_category_id, p_name, p_cuisine, p_rating, p_description, p_status, p_status_label, p_image_url, p_address, p_fulfillment_methods, p_sort_order)
+    insert into stores (
+      slug, category_id, name, cuisine, rating, description, status, status_label,
+      image_url, address, fulfillment_methods, contact_number, email, facebook, instagram, tiktok, sort_order
+    )
+    values (
+      p_slug, p_category_id, p_name, p_cuisine, p_rating, p_description, p_status, p_status_label,
+      p_image_url, p_address, p_fulfillment_methods, p_contact_number, p_email, p_facebook, p_instagram, p_tiktok, p_sort_order
+    )
     returning id into v_id;
   else
     update stores set
@@ -67,6 +83,11 @@ begin
       image_url = p_image_url,
       address = p_address,
       fulfillment_methods = p_fulfillment_methods,
+      contact_number = p_contact_number,
+      email = p_email,
+      facebook = p_facebook,
+      instagram = p_instagram,
+      tiktok = p_tiktok,
       sort_order = p_sort_order
     where id = p_id
     returning id into v_id;
@@ -76,7 +97,7 @@ begin
 end;
 $$;
 
-grant execute on function admin_upsert_store(text, uuid, text, text, text, text, numeric, text, text, text, text, text, text[], integer) to anon;
+grant execute on function admin_upsert_store(text, uuid, text, text, text, text, numeric, text, text, text, text, text, text[], text, text, text, text, text, integer) to anon;
 
 create or replace function admin_delete_store(p_password text, p_id uuid) returns void
 language plpgsql
