@@ -1441,6 +1441,53 @@ textarea.field-input { resize: vertical; font-family: inherit; }
 }
 .gps-picker-map .leaflet-container { font-family: inherit; }
 
+/* ===== Store Detail: Edit My Listing / Gallery / Facebook feed ===== */
+#btnEditMyListing { margin-bottom: var(--stack-lg); }
+
+.detail-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: var(--stack-lg);
+}
+.detail-gallery-item { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 1; }
+.detail-gallery-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-gallery-label {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), transparent);
+}
+
+.fb-feed-card {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--stack-lg);
+  background: var(--surface-container-low);
+  display: flex;
+  justify-content: center;
+}
+
+.gallery-manage-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.gallery-manage-row select.field-input { flex: 0 0 auto; width: auto; margin: 0; }
+.gallery-manage-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.gallery-manage-thumb { position: relative; width: 60px; height: 60px; border-radius: var(--radius); overflow: hidden; }
+.gallery-manage-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-manage-thumb button {
+  position: absolute;
+  top: 2px; right: 2px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+
 /* ===== Admin drawer: edge tab ===== */
 .admin-drawer-tab {
   position: fixed;

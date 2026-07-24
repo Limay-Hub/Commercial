@@ -16,6 +16,9 @@
 </head>
 <body>
 
+<!-- Facebook SDK — powers the "Latest on Facebook" Page Plugin embed on Store Detail -->
+<div id="fb-root"></div>
+
 <!-- ===== First-run registration ===== -->
 <div class="reg-overlay" id="regOverlay" hidden>
   <div class="reg-sheet">
@@ -425,10 +428,22 @@
 
         <span class="status-chip" id="detailStatus"></span>
 
+        <button class="btn-outline" id="btnEditMyListing" hidden>✏️ Edit My Listing</button>
+
         <div class="section-heading">
           <h2>Services &amp; Pricing</h2>
         </div>
         <div class="services-card" id="servicesCard"></div>
+
+        <div class="section-heading" id="galleryHeading" hidden>
+          <h2>Gallery</h2>
+        </div>
+        <div class="detail-gallery" id="detailGallery" hidden></div>
+
+        <div class="section-heading" id="fbFeedHeading" hidden>
+          <h2>Latest on Facebook</h2>
+        </div>
+        <div class="fb-feed-card" id="fbFeedCard" hidden></div>
 
         <div class="section-heading">
           <h2>Find Us</h2>
@@ -604,6 +619,87 @@
     </div>
   </div>
 
+  <!-- ===== Owner Edit overlay (for whoever submitted this store) ===== -->
+  <div class="overlay" id="ownerEditOverlay" hidden>
+    <div class="overlay-sheet">
+      <div class="overlay-header">
+        <h2>Edit My Listing</h2>
+        <button class="icon-btn" id="btnCloseOwnerEdit" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="overlay-body">
+        <input type="hidden" id="oeStoreId">
+        <label class="field-label">Business Name</label>
+        <input class="field-input" id="oeName" type="text">
+        <label class="field-label">Description</label>
+        <textarea class="field-input" id="oeDescription" rows="3"></textarea>
+        <label class="field-label">Status</label>
+        <select class="field-input" id="oeStatus">
+          <option value="open">Open</option>
+          <option value="closing">Closing Soon</option>
+          <option value="closed">Closed</option>
+        </select>
+        <label class="field-label">Status Label (e.g. "Open Now", "Opens 8:00 AM")</label>
+        <input class="field-input" id="oeStatusLabel" type="text">
+        <label class="field-label">Address / Location</label>
+        <input class="field-input" id="oeAddress" type="text">
+        <button type="button" class="btn-outline gps-add-btn" id="btnOeGps">📍 Add / Edit GPS Location</button>
+        <p class="field-note field-note-muted" id="oeGpsSummary"></p>
+        <label class="field-label">Contact Number</label>
+        <input class="field-input" id="oeContact" type="tel">
+        <label class="field-label">Email</label>
+        <input class="field-input" id="oeEmail" type="email">
+        <label class="field-label">Facebook Page</label>
+        <input class="field-input" id="oeFacebook" type="text" placeholder="facebook.com/yourpage">
+        <label class="field-label">Instagram Page</label>
+        <input class="field-input" id="oeInstagram" type="text" placeholder="instagram.com/yourpage">
+
+        <label class="field-label">Services Offered</label>
+        <div class="checkbox-row">
+          <label><input type="checkbox" value="Delivery" class="oeService"> Delivery</label>
+          <label><input type="checkbox" value="Pick up" class="oeService"> Pick up</label>
+          <label><input type="checkbox" value="Dine in" class="oeService"> Dine in</label>
+          <label><input type="checkbox" value="On-site Services" class="oeService"> On-site Services</label>
+          <label><input type="checkbox" value="Home Services" class="oeService"> Home Services</label>
+        </div>
+
+        <label class="field-label">Main Photo</label>
+        <div class="photo-upload-row">
+          <div class="photo-thumb-wrap">
+            <img class="photo-upload-preview" id="oeImagePreview" alt="" hidden>
+            <label class="photo-camera-badge" for="oeImageCamera" aria-label="Take photo" title="Take photo">📷</label>
+            <input type="file" accept="image/*" capture="environment" id="oeImageCamera" hidden>
+          </div>
+          <label class="btn-outline photo-upload-btn" for="oeImageFile">Choose Photo</label>
+          <input type="file" accept="image/*" id="oeImageFile" hidden>
+        </div>
+        <input class="field-input photo-url-input" id="oeImageUrl" type="url" placeholder="…or paste an image URL instead">
+
+        <label class="field-label">Gallery (Menu, Interior, and more)</label>
+        <div class="gallery-manage-list" id="oeGalleryList"></div>
+        <div class="gallery-manage-row">
+          <select class="field-input" id="oeGalleryLabel">
+            <option value="Menu">Menu</option>
+            <option value="Interior">Interior</option>
+            <option value="Storefront">Storefront</option>
+            <option value="Other">Other</option>
+          </select>
+          <label class="btn-outline photo-upload-btn" for="oeGalleryFile">+ Add Photo</label>
+          <input type="file" accept="image/*" id="oeGalleryFile" hidden>
+          <label class="btn-outline photo-upload-btn" for="oeGalleryCamera">📷</label>
+          <input type="file" accept="image/*" capture="environment" id="oeGalleryCamera" hidden>
+        </div>
+        <input class="field-input photo-url-input" id="oeGalleryUrl" type="url" placeholder="…or paste an image URL, then pick a label above">
+        <button type="button" class="btn-outline" id="btnOeGalleryAddUrl">+ Add From URL</button>
+        <p class="field-note" id="oeGalleryNote"></p>
+
+        <p class="field-note" id="ownerEditNote"></p>
+        <button class="btn-primary" id="btnOeSave">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
   <div class="overlay" id="weatherLocationOverlay" hidden>
     <div class="overlay-sheet">
       <div class="overlay-header">
@@ -662,6 +758,7 @@
 
         <div class="admin-form" id="adminStoreForm" hidden>
           <input type="hidden" id="asStoreId">
+          <input type="hidden" id="asStoreDbId">
           <label class="field-label">Name</label>
           <input class="field-input" id="asName" type="text">
           <label class="field-label">Slug (unique id, e.g. hearth-pizzeria)</label>
@@ -696,6 +793,27 @@
           <label class="field-label">Services &amp; Pricing</label>
           <div id="asServicesList"></div>
           <button class="btn-outline" id="btnAsAddService" type="button">+ Add Service Row</button>
+
+          <div id="asGallerySection" hidden>
+            <label class="field-label">Gallery (Menu, Interior, and more)</label>
+            <div class="gallery-manage-list" id="asGalleryList"></div>
+            <div class="gallery-manage-row">
+              <select class="field-input" id="asGalleryLabel">
+                <option value="Menu">Menu</option>
+                <option value="Interior">Interior</option>
+                <option value="Storefront">Storefront</option>
+                <option value="Other">Other</option>
+              </select>
+              <label class="btn-outline photo-upload-btn" for="asGalleryFile">+ Add Photo</label>
+              <input type="file" accept="image/*" id="asGalleryFile" hidden>
+              <label class="btn-outline photo-upload-btn" for="asGalleryCamera">📷</label>
+              <input type="file" accept="image/*" capture="environment" id="asGalleryCamera" hidden>
+            </div>
+            <input class="field-input photo-url-input" id="asGalleryUrl" type="url" placeholder="…or paste an image URL, then pick a label above">
+            <button type="button" class="btn-outline" id="btnAsGalleryAddUrl">+ Add From URL</button>
+            <p class="field-note" id="asGalleryNote"></p>
+          </div>
+          <p class="field-note field-note-muted" id="asGalleryHint" hidden>Save this store first, then reopen it to add gallery photos.</p>
 
           <p class="field-note" id="adminStoreFormNote"></p>
           <div class="admin-form-actions">

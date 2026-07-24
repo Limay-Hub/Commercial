@@ -345,14 +345,21 @@ begin
 
   insert into stores (
     slug, category_id, name, cuisine, rating, description, status, status_label,
-    image_url, address, fulfillment_methods, sort_order
+    image_url, address, fulfillment_methods, facebook, instagram, email, contact_number,
+    lat, lng, submitter_share_key, sort_order
   ) values (
     v_slug, v_sub.category_id, v_sub.business_name, '', 0, '', 'open', 'Open Now',
     coalesce(nullif(v_sub.photo_url, ''), nullif(v_sub.logo_url, '')),
     v_sub.address || case when coalesce(v_sub.landmark, '') <> '' then ' (near ' || v_sub.landmark || ')' else '' end,
-    coalesce(v_sub.services, '{}'), 999
+    coalesce(v_sub.services, '{}'), v_sub.facebook, v_sub.instagram, v_sub.email, v_sub.contact_number,
+    v_sub.lat, v_sub.lng, v_sub.submitter_share_key, 999
   )
   returning id into v_store_id;
+
+  if v_sub.logo_url is not null and v_sub.logo_url <> '' and v_sub.photo_url is not null and v_sub.photo_url <> '' then
+    insert into store_gallery (store_id, image_url, label, sort_order)
+    values (v_store_id, v_sub.logo_url, 'Other', 1);
+  end if;
 
   if v_sub.submitter_share_key is not null then
     insert into submission_notifications (share_key, business_name)

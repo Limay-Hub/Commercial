@@ -43,6 +43,12 @@ create table if not exists stores (
   lat numeric,
   lng numeric,
   fulfillment_methods text[] not null default '{}',  -- e.g. {'Store Pickup','Curbside','Local Delivery'}
+  facebook text,
+  instagram text,
+  email text,
+  contact_number text,
+  submitter_share_key uuid,          -- set when this store came from an approved Add Establishment
+                                      -- submission; lets that submitter edit their own listing later
   sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
@@ -55,6 +61,29 @@ create policy "stores are publicly readable"
   using (true);
 
 create index if not exists stores_category_id_idx on stores (category_id);
+
+-- ---------------------------------------------------------------------
+-- store_gallery ("Gallery" section on the detail page — Menu, Interior,
+-- Storefront, or Other, uploaded by admin or by the store's owner)
+-- ---------------------------------------------------------------------
+create table if not exists store_gallery (
+  id uuid primary key default gen_random_uuid(),
+  store_id uuid not null references stores(id) on delete cascade,
+  image_url text not null,           -- base64 data URL (upload/camera) or a plain image URL
+  label text not null default 'Other',
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table store_gallery enable row level security;
+
+create policy "store gallery is publicly readable"
+  on store_gallery for select
+  to anon, authenticated
+  using (true);
+
+create index if not exists store_gallery_store_id_idx on store_gallery (store_id);
+grant select on table store_gallery to anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- store_services (the "Services & Pricing" list on the detail page)

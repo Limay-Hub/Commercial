@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.14';
+const APP_VERSION = 'LN_SYS_V.1.15';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -280,7 +280,7 @@ async function loadDataFromSupabase() {
   try {
     const [catRes, storeRes, gemRes] = await Promise.all([
       supabaseClient.from('categories').select('*').order('sort_order'),
-      supabaseClient.from('stores').select('*, store_services(*)').order('sort_order'),
+      supabaseClient.from('stores').select('*, store_services(*), store_gallery(*)').order('sort_order'),
       supabaseClient.from('featured_gems').select('*').eq('active', true).order('sort_order').limit(1),
     ]);
 
@@ -291,6 +291,7 @@ async function loadDataFromSupabase() {
     if (!storeRes.error && storeRes.data && storeRes.data.length) {
       STORES = storeRes.data.map(s => ({
         id: s.slug,
+        dbId: s.id,
         name: s.name,
         category: s.category_id,
         cuisine: s.cuisine,
@@ -300,10 +301,20 @@ async function loadDataFromSupabase() {
         statusLabel: s.status_label,
         image: s.image_url,
         address: s.address,
+        lat: s.lat,
+        lng: s.lng,
+        facebook: s.facebook,
+        instagram: s.instagram,
+        email: s.email,
+        contactNumber: s.contact_number,
+        submitterShareKey: s.submitter_share_key,
         fulfillment: s.fulfillment_methods || [],
         services: (s.store_services || [])
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(sv => ({ name: sv.name, desc: sv.description, price: sv.price_label })),
+        gallery: (s.store_gallery || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(g => ({ id: g.id, url: g.image_url, label: g.label })),
       }));
       const cuisines = ['All Cuisines', ...new Set(STORES.map(s => s.cuisine).filter(Boolean))];
       CUISINES.length = 0;
@@ -659,6 +670,98 @@ function formatGpsSummary(coords) {
 }
 
 /* ============================================================
+   Store gallery management — shared by the owner "Edit My Listing"
+   overlay and the admin Store Manager form. auth is either
+   { password } (admin) or { shareKey } (owner); the RPCs accept both
+   and check whichever is present.
+   ============================================================ */
+async function addGalleryImage(storeDbId, imageUrl, label, auth) {
+  const { data, error } = await supabaseClient.rpc('add_gallery_image', {
+    p_password: auth.password || null,
+    p_share_key: auth.shareKey || null,
+    p_store_id: storeDbId,
+    p_image_url: imageUrl,
+    p_label: label,
+  });
+  if (error) throw error;
+  return data;
+}
+
+async function deleteGalleryImageRpc(imageId, auth) {
+  const { error } = await supabaseClient.rpc('delete_gallery_image', {
+    p_password: auth.password || null,
+    p_share_key: auth.shareKey || null,
+    p_image_id: imageId,
+  });
+  if (error) throw error;
+}
+
+function renderManagedGalleryList(listElId, images, auth, onChanged) {
+  const list = document.getElementById(listElId);
+  list.innerHTML = images.map((img) => `
+    <div class="gallery-manage-thumb">
+      <img src="${img.url}" alt="${escapeHtml(img.label || '')}">
+      <button type="button" data-del-gallery="${img.id}">✕</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('[data-del-gallery]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await deleteGalleryImageRpc(btn.dataset.delGallery, auth);
+        const idx = images.findIndex((i) => i.id === btn.dataset.delGallery);
+        if (idx !== -1) images.splice(idx, 1);
+        renderManagedGalleryList(listElId, images, auth, onChanged);
+        if (onChanged) onChanged(images);
+      } catch (err) {
+        alert('Could not remove photo: ' + (err.message || 'unknown error'));
+      }
+    });
+  });
+}
+
+// Wires the "+ Add Photo" (file), camera badge, and "+ Add From URL"
+// controls for one gallery block. getStoreDbId/getAuth are functions so
+// callers can supply values that aren't known until the form is open.
+function wireGalleryUploadControls(prefix, images, listElId, getStoreDbId, getAuth, onChanged) {
+  const noteEl = document.getElementById(`${prefix}GalleryNote`);
+  const labelEl = document.getElementById(`${prefix}GalleryLabel`);
+
+  async function addFromDataUrl(dataUrl) {
+    const storeDbId = getStoreDbId();
+    if (!storeDbId) { noteEl.textContent = 'Save the store first.'; return; }
+    noteEl.textContent = 'Adding…';
+    try {
+      const id = await addGalleryImage(storeDbId, dataUrl, labelEl.value, getAuth());
+      images.push({ id, url: dataUrl, label: labelEl.value });
+      renderManagedGalleryList(listElId, images, getAuth(), onChanged);
+      noteEl.textContent = '';
+      if (onChanged) onChanged(images);
+    } catch (err) {
+      noteEl.textContent = 'Could not add photo: ' + (err.message || 'unknown error');
+    }
+  }
+
+  [`${prefix}GalleryFile`, `${prefix}GalleryCamera`].forEach((inputId) => {
+    document.getElementById(inputId).addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const dataUrl = await readFileAsDataUrl(file);
+      e.target.value = '';
+      await addFromDataUrl(dataUrl);
+    });
+  });
+
+  const capPrefix = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+  document.getElementById(`btn${capPrefix}GalleryAddUrl`).addEventListener('click', async () => {
+    const urlInput = document.getElementById(`${prefix}GalleryUrl`);
+    const url = urlInput.value.trim();
+    if (!url) { noteEl.textContent = 'Paste an image URL first.'; return; }
+    urlInput.value = '';
+    await addFromDataUrl(url);
+  });
+}
+
+/* ============================================================
    Add Establishment (public business submission form)
    ============================================================ */
 function readFileAsDataUrl(file) {
@@ -817,6 +920,120 @@ function initAddEstablishment() {
       document.getElementById('aeGpsSummary').textContent = formatGpsSummary(coords);
     });
   });
+}
+
+/* ============================================================
+   Owner Edit — lets whoever submitted a store (matched by their local
+   share_key) edit it themselves, without needing admin access.
+   ============================================================ */
+let oeGpsCoords = null;
+let oeGalleryImages = [];
+let oeStore = null;
+
+function openOwnerEditForm(store) {
+  oeStore = store;
+  document.getElementById('oeStoreId').value = store.dbId;
+  document.getElementById('oeName').value = store.name || '';
+  document.getElementById('oeDescription').value = store.desc || '';
+  document.getElementById('oeStatus').value = store.status || 'open';
+  document.getElementById('oeStatusLabel').value = store.statusLabel || '';
+  document.getElementById('oeAddress').value = store.address || '';
+  document.getElementById('oeContact').value = store.contactNumber || '';
+  document.getElementById('oeEmail').value = store.email || '';
+  document.getElementById('oeFacebook').value = store.facebook || '';
+  document.getElementById('oeInstagram').value = store.instagram || '';
+
+  document.querySelectorAll('.oeService').forEach((cb) => {
+    cb.checked = !!store.fulfillment?.includes(cb.value);
+  });
+
+  ['oeImageFile', 'oeImageCamera', 'oeImageUrl', 'oeGalleryFile', 'oeGalleryCamera', 'oeGalleryUrl'].forEach((id) => {
+    document.getElementById(id).value = '';
+  });
+  const imgPreview = document.getElementById('oeImagePreview');
+  imgPreview.src = store.image || '';
+  imgPreview.hidden = !store.image;
+  delete imgPreview.dataset.source;
+
+  oeGpsCoords = (store.lat != null && store.lng != null) ? { lat: store.lat, lng: store.lng } : null;
+  document.getElementById('oeGpsSummary').textContent = formatGpsSummary(oeGpsCoords);
+
+  oeGalleryImages.length = 0;
+  oeGalleryImages.push(...(store.gallery || []));
+  renderManagedGalleryList('oeGalleryList', oeGalleryImages, { shareKey: getShareKey() }, (imgs) => { store.gallery = imgs; });
+
+  document.getElementById('ownerEditNote').textContent = '';
+  document.getElementById('ownerEditOverlay').hidden = false;
+}
+
+function closeOwnerEditForm() {
+  document.getElementById('ownerEditOverlay').hidden = true;
+}
+
+async function saveOwnerEdit() {
+  const note = document.getElementById('ownerEditNote');
+  const name = document.getElementById('oeName').value.trim();
+  const address = document.getElementById('oeAddress').value.trim();
+  if (!name || !address) { note.textContent = 'Business name and address are required.'; return; }
+
+  const imgPreview = document.getElementById('oeImagePreview');
+  const fulfillment = [...document.querySelectorAll('.oeService:checked')].map((cb) => cb.value);
+
+  note.textContent = 'Saving…';
+  try {
+    const { error } = await supabaseClient.rpc('owner_update_store', {
+      p_share_key: getShareKey(),
+      p_store_id: document.getElementById('oeStoreId').value,
+      p_name: name,
+      p_description: document.getElementById('oeDescription').value.trim(),
+      p_status: document.getElementById('oeStatus').value,
+      p_status_label: document.getElementById('oeStatusLabel').value.trim(),
+      p_image_url: imgPreview.hidden ? '' : imgPreview.src,
+      p_address: address,
+      p_fulfillment_methods: fulfillment,
+      p_facebook: document.getElementById('oeFacebook').value.trim(),
+      p_instagram: document.getElementById('oeInstagram').value.trim(),
+      p_email: document.getElementById('oeEmail').value.trim(),
+      p_contact_number: document.getElementById('oeContact').value.trim(),
+      p_lat: oeGpsCoords ? oeGpsCoords.lat : null,
+      p_lng: oeGpsCoords ? oeGpsCoords.lng : null,
+    });
+    if (error) throw error;
+
+    await loadDataFromSupabase();
+    renderStoreList(); renderFavorites(); renderLeaderboardGroups();
+    const updated = STORES.find((s) => s.dbId === document.getElementById('oeStoreId').value);
+    if (updated) renderDetail(updated);
+    closeOwnerEditForm();
+  } catch (err) {
+    note.textContent = 'Save failed: ' + (err.message || 'unknown error');
+  }
+}
+
+function initOwnerEdit() {
+  document.getElementById('btnCloseOwnerEdit').addEventListener('click', closeOwnerEditForm);
+  document.getElementById('ownerEditOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'ownerEditOverlay') closeOwnerEditForm();
+  });
+  document.getElementById('btnOeSave').addEventListener('click', saveOwnerEdit);
+
+  wireEstablishmentPhotoInput('oeImageFile', 'oeImagePreview');
+  wireEstablishmentPhotoInput('oeImageCamera', 'oeImagePreview');
+  wireEstablishmentUrlInput('oeImageUrl', 'oeImagePreview');
+
+  document.getElementById('btnOeGps').addEventListener('click', () => {
+    openGpsPicker(oeGpsCoords, (coords) => {
+      oeGpsCoords = coords;
+      document.getElementById('oeGpsSummary').textContent = formatGpsSummary(coords);
+    });
+  });
+
+  wireGalleryUploadControls(
+    'oe', oeGalleryImages, 'oeGalleryList',
+    () => document.getElementById('oeStoreId').value,
+    () => ({ shareKey: getShareKey() }),
+    (imgs) => { if (oeStore) oeStore.gallery = imgs; }
+  );
 }
 
 /* ============================================================
@@ -1973,7 +2190,79 @@ function renderDetail(store) {
   document.getElementById('orderBtn').textContent =
     store.fulfillment.includes('Store Pickup') ? 'Order for Pickup' : 'Order Now';
 
+  const editBtn = document.getElementById('btnEditMyListing');
+  editBtn.hidden = !(store.submitterShareKey && store.submitterShareKey === getShareKey());
+  editBtn.onclick = () => openOwnerEditForm(store);
+
+  renderPublicGallery(store.gallery || []);
+  renderFbFeedCard(store.facebook);
+
   updateFavButton();
+}
+
+/* ---- Gallery: public display ---- */
+function renderPublicGallery(images) {
+  const heading = document.getElementById('galleryHeading');
+  const grid = document.getElementById('detailGallery');
+  if (!images.length) {
+    heading.hidden = true;
+    grid.hidden = true;
+    grid.innerHTML = '';
+    return;
+  }
+  heading.hidden = false;
+  grid.hidden = false;
+  grid.innerHTML = images.map((img) => `
+    <div class="detail-gallery-item">
+      <img src="${img.url}" alt="${escapeHtml(img.label || '')}" loading="lazy">
+      <span class="detail-gallery-label">${escapeHtml(img.label || '')}</span>
+    </div>
+  `).join('');
+}
+
+/* ---- Facebook Page Plugin feed card ---- */
+let fbSdkLoading = null;
+function loadFacebookSdk() {
+  if (window.FB) return Promise.resolve();
+  if (fbSdkLoading) return fbSdkLoading;
+  fbSdkLoading = new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://connect.facebook.net/en_US/sdk.js#xfbml=0&version=v19.0';
+    script.onload = () => resolve();
+    script.onerror = () => resolve(); // best effort — card just won't render if this fails
+    document.body.appendChild(script);
+  });
+  return fbSdkLoading;
+}
+
+function normalizeFacebookUrl(raw) {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return '';
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+async function renderFbFeedCard(facebookRaw) {
+  const heading = document.getElementById('fbFeedHeading');
+  const card = document.getElementById('fbFeedCard');
+  const url = normalizeFacebookUrl(facebookRaw);
+  if (!url) {
+    heading.hidden = true;
+    card.hidden = true;
+    card.innerHTML = '';
+    return;
+  }
+
+  heading.hidden = false;
+  card.hidden = false;
+  card.innerHTML = `<div class="fb-page" data-href="${escapeHtml(url)}" data-tabs="timeline" data-width="500" data-height="360" data-small-header="true" data-hide-cover="false" data-show-facepile="false" data-adapt-container-width="true"></div>`;
+
+  await loadFacebookSdk();
+  if (window.FB && window.FB.XFBML) {
+    window.FB.XFBML.parse(card);
+  }
 }
 
 function updateFavButton() {
@@ -2165,6 +2454,8 @@ async function adminRpc(fnName, params) {
 }
 
 /* ---- Store Manager ---- */
+let asGalleryImages = [];
+
 function renderAdminStoreList() {
   const list = document.getElementById('adminStoreList');
   list.innerHTML = STORES.map(s => `
@@ -2227,6 +2518,15 @@ function openStoreForm(store) {
 
   document.getElementById('asServicesList').innerHTML = '';
   (store?.services || []).forEach(addServiceRow);
+
+  document.getElementById('asStoreDbId').value = store?.dbId || '';
+  document.getElementById('asGallerySection').hidden = !store;
+  document.getElementById('asGalleryHint').hidden = !!store;
+  if (store) {
+    asGalleryImages.length = 0;
+    asGalleryImages.push(...(store.gallery || []));
+    renderManagedGalleryList('asGalleryList', asGalleryImages, { password: adminSession.password }, (imgs) => { store.gallery = imgs; });
+  }
 
   document.getElementById('adminStoreFormNote').textContent = '';
   document.getElementById('adminStoreForm').hidden = false;
@@ -2609,6 +2909,16 @@ function initAdminSystem() {
   document.getElementById('btnAsSave').addEventListener('click', saveStore);
   document.getElementById('btnAgSave').addEventListener('click', saveGem);
 
+  wireGalleryUploadControls(
+    'as', asGalleryImages, 'asGalleryList',
+    () => document.getElementById('asStoreDbId').value,
+    () => ({ password: adminSession.password }),
+    (imgs) => {
+      const store = STORES.find((s) => s.dbId === document.getElementById('asStoreDbId').value);
+      if (store) store.gallery = imgs;
+    }
+  );
+
   wireEstablishmentPhotoInput('asubLogoFile', 'asubLogoPreview');
   wireEstablishmentPhotoInput('asubLogoCamera', 'asubLogoPreview');
   wireEstablishmentPhotoInput('asubPhotoFile', 'asubPhotoPreview');
@@ -2689,6 +2999,7 @@ async function init() {
   initIdentityWidget();
   initGpsPicker();
   initAddEstablishment();
+  initOwnerEdit();
   initAnnouncementAdminWidget();
 
   switchView('home');
