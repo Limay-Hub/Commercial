@@ -41,6 +41,47 @@ create policy "anyone can submit an establishment"
 
 -- Intentionally no select policy — submissions are private until reviewed.
 
+-- The app submits through this RPC rather than a direct table insert —
+-- this project's PostgREST layer has intermittently refused direct anon
+-- inserts to store_submissions even with a verified-correct policy and
+-- grants (a Supabase-side quirk, not a config error on our end). RPCs
+-- run security definer and reliably bypass it.
+create or replace function submit_establishment(
+  p_business_name text,
+  p_category_id text,
+  p_address text,
+  p_landmark text,
+  p_contact_number text,
+  p_email text,
+  p_facebook text,
+  p_instagram text,
+  p_services text[],
+  p_logo_url text,
+  p_photo_url text,
+  p_lat numeric,
+  p_lng numeric,
+  p_submitter_share_key uuid
+) returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_id uuid;
+begin
+  insert into store_submissions (
+    business_name, category_id, address, landmark, contact_number, email,
+    facebook, instagram, services, logo_url, photo_url, lat, lng, submitter_share_key
+  ) values (
+    p_business_name, p_category_id, p_address, p_landmark, p_contact_number, p_email,
+    p_facebook, p_instagram, p_services, p_logo_url, p_photo_url, p_lat, p_lng, p_submitter_share_key
+  )
+  returning id into v_id;
+  return v_id;
+end;
+$$;
+
+grant execute on function submit_establishment(text, text, text, text, text, text, text, text, text[], text, text, numeric, numeric, uuid) to anon;
+
 -- ---------------------------------------------------------------------
 -- submission_notifications — "your establishment was approved!" alerts,
 -- surfaced via the topbar bell to whichever device holds the matching

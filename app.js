@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'LN_SYS_V.1.15';
+const APP_VERSION = 'LN_SYS_V.1.16';
 
 /* ============================================================
    Supabase client (optional — falls back to seed data below
@@ -868,21 +868,26 @@ async function submitEstablishment() {
 
   try {
     if (!supabaseClient) throw new Error('offline');
-    const { error } = await supabaseClient.from('store_submissions').insert({
-      business_name: submission.name,
-      category_id: submission.categoryId,
-      address: submission.address,
-      landmark: submission.landmark,
-      contact_number: submission.contactNumber,
-      email: submission.email,
-      facebook: submission.facebook,
-      instagram: submission.instagram,
-      services: submission.services,
-      logo_url: submission.logo,
-      photo_url: submission.photo,
-      lat: submission.lat,
-      lng: submission.lng,
-      submitter_share_key: getShareKey(),
+    // Routed through an RPC (rather than a direct table insert) — this
+    // project's PostgREST layer has intermittently refused direct anon
+    // inserts to store_submissions even with a verified-correct policy
+    // and grants, while RPC calls (which run security definer, bypassing
+    // RLS) go through reliably.
+    const { error } = await supabaseClient.rpc('submit_establishment', {
+      p_business_name: submission.name,
+      p_category_id: submission.categoryId,
+      p_address: submission.address,
+      p_landmark: submission.landmark,
+      p_contact_number: submission.contactNumber,
+      p_email: submission.email,
+      p_facebook: submission.facebook,
+      p_instagram: submission.instagram,
+      p_services: submission.services,
+      p_logo_url: submission.logo,
+      p_photo_url: submission.photo,
+      p_lat: submission.lat,
+      p_lng: submission.lng,
+      p_submitter_share_key: getShareKey(),
     });
     if (error) throw error;
   } catch (err) {
